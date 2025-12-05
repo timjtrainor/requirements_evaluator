@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.aws-sam/
+
+# Coverage reports
+coverage/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Log files
+*.log
+npm-debug.log*
+
+# SAM CLI temporary files
+.aws-sam/
+
+# Test output
+junit.xml
+test-results/
+
+# Temporary files
+tmp/
+temp/

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Requirements Quality Evaluator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Requirements Quality Evaluator</h1>
+            <p class="subtitle">Evaluate your software requirements for ambiguity, testability, and completeness</p>
+        </header>
+
+        <main>
+            <!-- Input Section -->
+            <section class="input-section">
+                <label for="requirement-input">Enter your requirement:</label>
+                <textarea 
+                    id="requirement-input" 
+                    placeholder="Example: The system shall allow users to log in using their email and password within 3 seconds."
+                    rows="4"
+                ></textarea>
+                <button id="evaluate-btn" onclick="evaluateRequirement()">
+                    <span class="btn-text">Evaluate Requirement</span>
+                    <span class="btn-loader" style="display: none;">Evaluating...</span>
+                </button>
+            </section>
+
+            <!-- Results Section -->
+            <section id="results-section" class="results-section" style="display: none;">
+                <h2>Evaluation Results</h2>
+                
+                <!-- Overall Score -->
+                <div class="overall-score">
+                    <span class="score-label">Overall Quality Score:</span>
+                    <span id="overall-score" class="score-value">--</span>
+                </div>
+
+                <!-- Evaluation Categories -->
+                <div class="evaluation-grid">
+                    <!-- Ambiguity -->
+                    <div class="evaluation-card" id="ambiguity-card">
+                        <h3>Ambiguity</h3>
+                        <div class="score-indicator">
+                            <span class="category-score" id="ambiguity-score">--</span>
+                            <span class="score-max">/10</span>
+                        </div>
+                        <p class="category-description" id="ambiguity-feedback">--</p>
+                    </div>
+
+                    <!-- Testability -->
+                    <div class="evaluation-card" id="testability-card">
+                        <h3>Testability</h3>
+                        <div class="score-indicator">
+                            <span class="category-score" id="testability-score">--</span>
+                            <span class="score-max">/10</span>
+                        </div>
+                        <p class="category-description" id="testability-feedback">--</p>
+                    </div>
+
+                    <!-- Completeness -->
+                    <div class="evaluation-card" id="completeness-card">
+                        <h3>Completeness</h3>
+                        <div class="score-indicator">
+                            <span class="category-score" id="completeness-score">--</span>
+                            <span class="score-max">/10</span>
+                        </div>
+                        <p class="category-description" id="completeness-feedback">--</p>
+                    </div>
+                </div>
+
+                <!-- Suggestions -->
+                <div class="suggestions-section">
+                    <h3>Improvement Suggestions</h3>
+                    <ul id="suggestions-list">
+                        <!-- Suggestions will be populated dynamically -->
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Error Section -->
+            <section id="error-section" class="error-section" style="display: none;">
+                <div class="error-message">
+                    <span class="error-icon">⚠️</span>
+                    <p id="error-text">An error occurred. Please try again.</p>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Powered by Amazon Bedrock AI | © 2024 AI Requirements Quality Evaluator</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

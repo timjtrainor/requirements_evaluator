@@ -1,0 +1,51 @@
+# Deployment configuration for SAM CLI
+version: 0.1
+
+default:
+  global:
+    parameters:
+      stack_name: requirements-evaluator
+      s3_bucket: ""  # Will be created by SAM CLI
+      s3_prefix: requirements-evaluator
+      region: us-east-1
+      confirm_changeset: true
+      capabilities: CAPABILITY_IAM
+
+  deploy:
+    parameters:
+      resolve_s3: true
+      fail_on_empty_changeset: false
+
+  build:
+    parameters:
+      use_container: false
+      parallel: true
+
+# Environment-specific overrides
+dev:
+  deploy:
+    parameters:
+      stack_name: requirements-evaluator-dev
+      parameter_overrides:
+        - Environment=dev
+        - RateLimitMax=20
+        - RateLimitWindowSeconds=60
+
+staging:
+  deploy:
+    parameters:
+      stack_name: requirements-evaluator-staging
+      parameter_overrides:
+        - Environment=staging
+        - RateLimitMax=15
+        - RateLimitWindowSeconds=60
+
+prod:
+  deploy:
+    parameters:
+      stack_name: requirements-evaluator-prod
+      parameter_overrides:
+        - Environment=prod
+        - RateLimitMax=10
+        - RateLimitWindowSeconds=60
+      confirm_changeset: true
