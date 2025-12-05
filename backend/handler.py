@@ -142,7 +142,12 @@ def call_bedrock(requirement_text: str) -> dict:
         "messages": [
             {
                 "role": "user",
-                "content": prompt
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
             }
         ],
         "temperature": 0.2  # Low temperature for consistent evaluations
