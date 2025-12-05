@@ -96,16 +96,14 @@ export async function recordRequest(clientIp) {
         const ttl = now + WINDOW_SIZE_SECONDS * 2;  // TTL for DynamoDB auto-cleanup
 
         // Use conditional update to atomically increment counter
+        const updateExpression = 'SET requestCount = if_not_exists(requestCount, :zero) + :one, lastReset = if_not_exists(lastReset, :now), #ttl = :ttl';
+        
         const command = new UpdateItemCommand({
             TableName: TABLE_NAME,
             Key: {
                 pk: { S: `IP#${clientIp}` }
             },
-            UpdateExpression: `
-                SET requestCount = if_not_exists(requestCount, :zero) + :one,
-                    lastReset = if_not_exists(lastReset, :now),
-                    #ttl = :ttl
-            `,
+            UpdateExpression: updateExpression,
             ConditionExpression: 'attribute_not_exists(lastReset) OR lastReset >= :windowStart',
             ExpressionAttributeNames: {
                 '#ttl': 'ttl'

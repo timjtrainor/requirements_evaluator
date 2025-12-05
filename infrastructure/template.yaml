@@ -227,7 +227,9 @@ Resources:
           CachedMethods:
             - GET
             - HEAD
-          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
+          # AWS Managed Policy: CachingOptimized (658327ea-f89d-4fab-a63d-7e88639e58f6)
+          # See: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-cache-policies.html
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
           Compress: true
 
         CacheBehaviors:
@@ -243,8 +245,12 @@ Resources:
               - POST
               - PATCH
               - DELETE
-            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # Managed-CachingDisabled
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # Managed-AllViewerExceptHostHeader
+            # AWS Managed Policy: CachingDisabled (4135ea2d-6df8-44a3-9df3-4b5a84be39ad)
+            # See: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-cache-policies.html
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            # AWS Managed Policy: AllViewerExceptHostHeader (b689b0a8-53d0-40ab-baf2-68738e2966ac)
+            # See: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-origin-request-policies.html
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
 
         # Custom error responses for SPA routing
         CustomErrorResponses:

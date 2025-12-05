@@ -16,6 +16,9 @@ const bedrockClient = new BedrockRuntimeClient({
 // Model configuration - using Claude 3 Sonnet for quality responses
 const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-sonnet-20240229-v1:0';
 
+// Maximum number of suggestions to return in the evaluation response
+const MAX_SUGGESTIONS = 5;
+
 /**
  * Evaluation prompt template for the AI model
  * This prompt guides the model to provide structured evaluation
@@ -81,7 +84,10 @@ export async function evaluateRequirement(requirement) {
                 content: prompt
             }
         ],
-        temperature: 0.3  // Lower temperature for more consistent evaluations
+        // Temperature 0.3: Lower value for more deterministic, consistent evaluations.
+        // Higher values (0.7-1.0) increase creativity but reduce reproducibility.
+        // For quality assessments, consistency is preferred over variety.
+        temperature: 0.3
     };
 
     try {
@@ -190,7 +196,7 @@ function validateSuggestions(suggestions) {
     return suggestions
         .filter(s => typeof s === 'string' && s.trim().length > 0)
         .map(s => s.trim())
-        .slice(0, 5);  // Limit to 5 suggestions
+        .slice(0, MAX_SUGGESTIONS);
 }
 
 /**

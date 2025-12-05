@@ -5,9 +5,20 @@
  * and dynamic rendering of evaluation results.
  */
 
-// Configuration - API endpoint will be set after deployment
+/**
+ * Configuration for the frontend application.
+ * 
+ * API_ENDPOINT Configuration:
+ * - For local development: Use '/api/evaluate' (relative path works with SAM local)
+ * - For production: Set window.API_ENDPOINT before loading this script, or
+ *   update the default value after deployment with your CloudFront domain:
+ *   Example: 'https://d1234abcd.cloudfront.net/api/evaluate'
+ * 
+ * To set via environment:
+ * <script>window.API_ENDPOINT = 'https://your-domain/api/evaluate';</script>
+ * <script src="app.js"></script>
+ */
 const CONFIG = {
-    // Replace with actual API Gateway endpoint after deployment
     API_ENDPOINT: window.API_ENDPOINT || '/api/evaluate',
     MIN_REQUIREMENT_LENGTH: 10,
     MAX_REQUIREMENT_LENGTH: 2000
