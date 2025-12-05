@@ -1,0 +1,261 @@
+"""
+Lambda handler for AI Requirements Quality Evaluator.
+
+Accepts POST requests with JSON { "requirementText": "..." },
+validates input, checks rate limits, calls Amazon Bedrock (Claude 3 Haiku),
+and returns structured evaluation results.
+"""
+
+import json
+import logging
+import os
+from typing import Any
+
+import boto3
+from botocore.exceptions import ClientError
+
+from rate_limit import check_and_increment_quota
+
+# Configure logging
+logger = logging.getLogger()
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+
+# Bedrock configuration from environment variables
+BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-east-1")
+BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
+
+# Initialize Bedrock client
+bedrock_client = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
+
+# CORS headers for API Gateway responses
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json"
+}
+
+
+def create_response(status_code: int, body: dict) -> dict:
+    """Create a properly formatted API Gateway response."""
+    return {
+        "statusCode": status_code,
+        "headers": CORS_HEADERS,
+        "body": json.dumps(body)
+    }
+
+
+def validate_request(body: dict) -> tuple[bool, str]:
+    """
+    Validate the incoming request body.
+    
+    Args:
+        body: Parsed JSON body from the request
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not body:
+        return False, "Request body is empty"
+    
+    if "requirementText" not in body:
+        return False, "Missing required field: requirementText"
+    
+    requirement_text = body.get("requirementText", "")
+    
+    if not isinstance(requirement_text, str):
+        return False, "requirementText must be a string"
+    
+    if len(requirement_text.strip()) == 0:
+        return False, "requirementText cannot be empty"
+    
+    if len(requirement_text) > 5000:
+        return False, "requirementText exceeds maximum length of 5000 characters"
+    
+    return True, ""
+
+
+def build_evaluation_prompt(requirement_text: str) -> str:
+    """
+    Build the prompt for Bedrock to evaluate the requirement.
+    
+    Args:
+        requirement_text: The software requirement to evaluate
+        
+    Returns:
+        Formatted prompt string
+    """
+    return f"""You are an expert software requirements analyst. Analyze the following software requirement and provide a structured evaluation.
+
+Requirement to evaluate:
+"{requirement_text}"
+
+Evaluate the requirement and respond with ONLY valid JSON in this exact format:
+{{
+    "ambiguity_detected": true/false,
+    "ambiguity_details": "explanation of any ambiguous terms or phrases, or 'None' if clear",
+    "testable": true/false,
+    "testability_details": "explanation of whether the requirement can be objectively tested",
+    "completeness_score": 1-10,
+    "completeness_details": "explanation of what information may be missing",
+    "issues": ["list", "of", "specific", "issues"],
+    "suggestions": ["list", "of", "improvement", "suggestions"]
+}}
+
+Important guidelines:
+- ambiguity_detected: true if the requirement contains vague, unclear, or subjective language
+- testable: true if the requirement has measurable, verifiable acceptance criteria
+- completeness_score: 1 (very incomplete) to 10 (fully complete)
+- Be specific and actionable in your feedback
+
+Respond with ONLY the JSON object, no additional text."""
+
+
+def call_bedrock(requirement_text: str) -> dict:
+    """
+    Call Amazon Bedrock to evaluate the requirement.
+    
+    Args:
+        requirement_text: The software requirement to evaluate
+        
+    Returns:
+        Parsed evaluation results from Bedrock
+        
+    Raises:
+        Exception: If Bedrock call fails or response cannot be parsed
+    """
+    prompt = build_evaluation_prompt(requirement_text)
+    
+    # Prepare request body for Claude 3 Haiku
+    request_body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 1024,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.2  # Low temperature for consistent evaluations
+    }
+    
+    logger.info(f"Calling Bedrock model: {BEDROCK_MODEL_ID}")
+    
+    response = bedrock_client.invoke_model(
+        modelId=BEDROCK_MODEL_ID,
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps(request_body)
+    )
+    
+    # Parse response
+    response_body = json.loads(response["body"].read())
+    content = response_body.get("content", [{}])[0].get("text", "")
+    
+    logger.debug(f"Bedrock response content: {content}")
+    
+    # Parse the JSON from the response
+    try:
+        # Try to extract JSON from the response
+        evaluation = json.loads(content)
+        return evaluation
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse Bedrock response as JSON: {e}")
+        # Return a default structure if parsing fails
+        return {
+            "ambiguity_detected": None,
+            "ambiguity_details": "Failed to parse evaluation",
+            "testable": None,
+            "testability_details": "Failed to parse evaluation",
+            "completeness_score": 0,
+            "completeness_details": "Failed to parse evaluation",
+            "issues": ["Evaluation parsing error"],
+            "suggestions": ["Please try again"]
+        }
+
+
+def get_client_ip(event: dict) -> str:
+    """Extract client IP from the API Gateway event."""
+    # Try requestContext first (API Gateway v1)
+    request_context = event.get("requestContext", {})
+    identity = request_context.get("identity", {})
+    source_ip = identity.get("sourceIp")
+    
+    if source_ip:
+        return source_ip
+    
+    # Try headers (X-Forwarded-For from CloudFront/ALB)
+    headers = event.get("headers", {}) or {}
+    forwarded_for = headers.get("X-Forwarded-For") or headers.get("x-forwarded-for")
+    
+    if forwarded_for:
+        # Take the first IP in the chain
+        return forwarded_for.split(",")[0].strip()
+    
+    return "unknown"
+
+
+def handler(event: dict, context: Any) -> dict:
+    """
+    Main Lambda handler function.
+    
+    Args:
+        event: API Gateway event
+        context: Lambda context
+        
+    Returns:
+        API Gateway response
+    """
+    logger.info(f"Received event: {json.dumps(event)}")
+    
+    # Handle CORS preflight
+    http_method = event.get("httpMethod", "")
+    if http_method == "OPTIONS":
+        return create_response(200, {"message": "OK"})
+    
+    # Only accept POST requests
+    if http_method != "POST":
+        return create_response(405, {"error": "Method not allowed"})
+    
+    try:
+        # Parse request body
+        body_str = event.get("body", "")
+        if not body_str:
+            return create_response(400, {"error": "Request body is required"})
+        
+        try:
+            body = json.loads(body_str)
+        except json.JSONDecodeError:
+            return create_response(400, {"error": "Invalid JSON in request body"})
+        
+        # Validate request
+        is_valid, error_msg = validate_request(body)
+        if not is_valid:
+            logger.warning(f"Validation failed: {error_msg}")
+            return create_response(400, {"error": error_msg})
+        
+        # Check rate limit
+        client_ip = get_client_ip(event)
+        allowed, rate_error = check_and_increment_quota(client_ip)
+        
+        if not allowed:
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            return create_response(429, {"error": rate_error})
+        
+        # Call Bedrock for evaluation
+        requirement_text = body["requirementText"].strip()
+        logger.info(f"Evaluating requirement: {requirement_text[:100]}...")
+        
+        evaluation = call_bedrock(requirement_text)
+        
+        logger.info("Evaluation completed successfully")
+        return create_response(200, evaluation)
+        
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        logger.error(f"AWS ClientError: {error_code} - {str(e)}")
+        return create_response(500, {"error": f"AWS service error: {error_code}"})
+        
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        return create_response(500, {"error": "Internal server error"})

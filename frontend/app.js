@@ -1,268 +1,243 @@
 /**
  * AI Requirements Quality Evaluator - Frontend Application
  * 
- * This module handles user interactions, API communication,
- * and dynamic rendering of evaluation results.
+ * Handles user interactions, API communication, and result rendering.
  */
 
+// =============================================================================
+// Configuration
+// =============================================================================
+
 /**
- * Configuration for the frontend application.
+ * API Configuration
+ * Replace API_BASE_URL with your actual API Gateway or CloudFront URL after deployment.
  * 
- * API_ENDPOINT Configuration:
- * - For local development: Use '/api/evaluate' (relative path works with SAM local)
- * - For production: Set window.API_ENDPOINT before loading this script, or
- *   update the default value after deployment with your CloudFront domain:
- *   Example: 'https://d1234abcd.cloudfront.net/api/evaluate'
- * 
- * To set via environment:
- * <script>window.API_ENDPOINT = 'https://your-domain/api/evaluate';</script>
- * <script src="app.js"></script>
+ * For local development with SAM: http://localhost:3000
+ * For production: https://your-cloudfront-domain.cloudfront.net
  */
 const CONFIG = {
-    API_ENDPOINT: window.API_ENDPOINT || '/api/evaluate',
-    MIN_REQUIREMENT_LENGTH: 10,
-    MAX_REQUIREMENT_LENGTH: 2000
+    API_BASE_URL: '', // Set this after deployment (e.g., 'https://d1234abcd.cloudfront.net')
+    EVALUATE_ENDPOINT: '/evaluate'
 };
 
+// =============================================================================
+// DOM Elements
+// =============================================================================
+
+const elements = {
+    input: document.getElementById('requirement-input'),
+    button: document.getElementById('evaluate-btn'),
+    buttonText: document.querySelector('.btn-text'),
+    buttonLoader: document.querySelector('.btn-loader'),
+    resultsSection: document.getElementById('results-section'),
+    errorSection: document.getElementById('error-section'),
+    errorText: document.getElementById('error-text'),
+    // Result elements
+    ambiguityIndicator: document.getElementById('ambiguity-indicator'),
+    ambiguityDetails: document.getElementById('ambiguity-details'),
+    ambiguityCard: document.getElementById('ambiguity-card'),
+    testabilityIndicator: document.getElementById('testability-indicator'),
+    testabilityDetails: document.getElementById('testability-details'),
+    testabilityCard: document.getElementById('testability-card'),
+    completenessScore: document.getElementById('completeness-score'),
+    completenessDetails: document.getElementById('completeness-details'),
+    completenessCard: document.getElementById('completeness-card'),
+    issuesList: document.getElementById('issues-list'),
+    suggestionsList: document.getElementById('suggestions-list')
+};
+
+// =============================================================================
+// API Functions
+// =============================================================================
+
 /**
- * Main function to evaluate a requirement
- * Validates input, sends to API, and displays results
+ * Get the full API URL for the evaluate endpoint.
  */
-async function evaluateRequirement() {
-    const inputElement = document.getElementById('requirement-input');
-    const requirement = inputElement.value.trim();
-
-    // Validate input
-    const validationError = validateInput(requirement);
-    if (validationError) {
-        showError(validationError);
-        return;
-    }
-
-    // Update UI to loading state
-    setLoadingState(true);
-    hideError();
-    hideResults();
-
-    try {
-        // Send request to API
-        const response = await sendEvaluationRequest(requirement);
-        
-        // Display results
-        displayResults(response);
-    } catch (error) {
-        console.error('Evaluation failed:', error);
-        showError(getErrorMessage(error));
-    } finally {
-        setLoadingState(false);
-    }
+function getApiUrl() {
+    return CONFIG.API_BASE_URL + CONFIG.EVALUATE_ENDPOINT;
 }
 
 /**
- * Validates the requirement input
- * @param {string} requirement - The requirement text to validate
- * @returns {string|null} Error message if invalid, null if valid
+ * Send a requirement to the API for evaluation.
+ * @param {string} requirementText - The requirement text to evaluate
+ * @returns {Promise<Object>} - The evaluation results
  */
-function validateInput(requirement) {
-    if (!requirement) {
-        return 'Please enter a requirement to evaluate.';
-    }
-
-    if (requirement.length < CONFIG.MIN_REQUIREMENT_LENGTH) {
-        return `Requirement must be at least ${CONFIG.MIN_REQUIREMENT_LENGTH} characters long.`;
-    }
-
-    if (requirement.length > CONFIG.MAX_REQUIREMENT_LENGTH) {
-        return `Requirement must not exceed ${CONFIG.MAX_REQUIREMENT_LENGTH} characters.`;
-    }
-
-    return null;
-}
-
-/**
- * Sends the evaluation request to the backend API
- * @param {string} requirement - The requirement text to evaluate
- * @returns {Promise<Object>} The evaluation response
- */
-async function sendEvaluationRequest(requirement) {
-    const response = await fetch(CONFIG.API_ENDPOINT, {
+async function evaluateRequirement(requirementText) {
+    const response = await fetch(getApiUrl(), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ requirement })
+        body: JSON.stringify({ requirementText })
     });
+
+    const data = await response.json();
 
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error: ${response.status}`);
+        throw new Error(data.error || `HTTP error: ${response.status}`);
     }
 
-    return response.json();
+    return data;
 }
 
+// =============================================================================
+// UI Functions
+// =============================================================================
+
 /**
- * Displays the evaluation results in the UI
- * @param {Object} results - The evaluation results from the API
+ * Set the loading state of the UI.
  */
-function displayResults(results) {
-    // Show results section
-    const resultsSection = document.getElementById('results-section');
-    resultsSection.style.display = 'block';
-
-    // Update overall score
-    const overallScore = calculateOverallScore(results);
-    document.getElementById('overall-score').textContent = `${overallScore}/10`;
-
-    // Update individual category scores and feedback
-    updateCategoryCard('ambiguity', results.ambiguity);
-    updateCategoryCard('testability', results.testability);
-    updateCategoryCard('completeness', results.completeness);
-
-    // Update suggestions
-    updateSuggestions(results.suggestions || []);
-
-    // Scroll to results
-    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function setLoading(isLoading) {
+    elements.button.disabled = isLoading;
+    elements.buttonText.style.display = isLoading ? 'none' : 'inline';
+    elements.buttonLoader.style.display = isLoading ? 'inline' : 'none';
 }
 
 /**
- * Calculates the overall score from individual category scores
- * @param {Object} results - The evaluation results
- * @returns {number} The overall score (0-10)
- */
-function calculateOverallScore(results) {
-    const ambiguityScore = results.ambiguity?.score || 0;
-    const testabilityScore = results.testability?.score || 0;
-    const completenessScore = results.completeness?.score || 0;
-
-    const average = (ambiguityScore + testabilityScore + completenessScore) / 3;
-    return Math.round(average * 10) / 10;
-}
-
-/**
- * Updates a category card with score and feedback
- * @param {string} category - The category name (ambiguity, testability, completeness)
- * @param {Object} data - The category data with score and feedback
- */
-function updateCategoryCard(category, data) {
-    const score = data?.score || 0;
-    const feedback = data?.feedback || 'No feedback available.';
-
-    // Update score
-    const scoreElement = document.getElementById(`${category}-score`);
-    scoreElement.textContent = score;
-
-    // Update feedback
-    const feedbackElement = document.getElementById(`${category}-feedback`);
-    feedbackElement.textContent = feedback;
-
-    // Update card styling based on score
-    const card = document.getElementById(`${category}-card`);
-    card.classList.remove('score-high', 'score-medium', 'score-low');
-    
-    if (score >= 7) {
-        card.classList.add('score-high');
-    } else if (score >= 4) {
-        card.classList.add('score-medium');
-    } else {
-        card.classList.add('score-low');
-    }
-}
-
-/**
- * Updates the suggestions list in the UI
- * @param {string[]} suggestions - Array of improvement suggestions
- */
-function updateSuggestions(suggestions) {
-    const suggestionsList = document.getElementById('suggestions-list');
-    suggestionsList.innerHTML = '';
-
-    if (suggestions.length === 0) {
-        const li = document.createElement('li');
-        li.textContent = 'No specific suggestions - your requirement looks good!';
-        suggestionsList.appendChild(li);
-        return;
-    }
-
-    suggestions.forEach(suggestion => {
-        const li = document.createElement('li');
-        li.textContent = suggestion;
-        suggestionsList.appendChild(li);
-    });
-}
-
-/**
- * Sets the loading state of the UI
- * @param {boolean} isLoading - Whether the app is in loading state
- */
-function setLoadingState(isLoading) {
-    const button = document.getElementById('evaluate-btn');
-    const buttonText = button.querySelector('.btn-text');
-    const buttonLoader = button.querySelector('.btn-loader');
-
-    button.disabled = isLoading;
-    buttonText.style.display = isLoading ? 'none' : 'inline';
-    buttonLoader.style.display = isLoading ? 'inline' : 'none';
-}
-
-/**
- * Shows an error message to the user
- * @param {string} message - The error message to display
+ * Show an error message.
  */
 function showError(message) {
-    const errorSection = document.getElementById('error-section');
-    const errorText = document.getElementById('error-text');
-
-    errorText.textContent = message;
-    errorSection.style.display = 'block';
-
-    // Scroll to error
-    errorSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    elements.errorText.textContent = message;
+    elements.errorSection.style.display = 'block';
+    elements.resultsSection.style.display = 'none';
 }
 
 /**
- * Hides the error section
+ * Hide error messages.
  */
 function hideError() {
-    const errorSection = document.getElementById('error-section');
-    errorSection.style.display = 'none';
+    elements.errorSection.style.display = 'none';
 }
 
 /**
- * Hides the results section
+ * Display the evaluation results.
  */
-function hideResults() {
-    const resultsSection = document.getElementById('results-section');
-    resultsSection.style.display = 'none';
+function displayResults(results) {
+    // Ambiguity
+    const ambiguityDetected = results.ambiguity_detected;
+    elements.ambiguityIndicator.textContent = ambiguityDetected ? 'Detected' : 'Clear';
+    elements.ambiguityIndicator.className = 'indicator ' + (ambiguityDetected ? 'status-bad' : 'status-good');
+    elements.ambiguityDetails.textContent = results.ambiguity_details || '';
+
+    // Testability
+    const isTestable = results.testable;
+    elements.testabilityIndicator.textContent = isTestable ? 'Testable' : 'Not Testable';
+    elements.testabilityIndicator.className = 'indicator ' + (isTestable ? 'status-good' : 'status-bad');
+    elements.testabilityDetails.textContent = results.testability_details || '';
+
+    // Completeness
+    const completenessScore = results.completeness_score || 0;
+    elements.completenessScore.textContent = `${completenessScore}/10`;
+    elements.completenessScore.className = 'score ' + getScoreClass(completenessScore);
+    elements.completenessDetails.textContent = results.completeness_details || '';
+
+    // Issues
+    elements.issuesList.innerHTML = '';
+    const issues = results.issues || [];
+    if (issues.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = 'No issues found';
+        elements.issuesList.appendChild(li);
+    } else {
+        issues.forEach(issue => {
+            const li = document.createElement('li');
+            li.textContent = issue;
+            elements.issuesList.appendChild(li);
+        });
+    }
+
+    // Suggestions
+    elements.suggestionsList.innerHTML = '';
+    const suggestions = results.suggestions || [];
+    if (suggestions.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = 'No suggestions';
+        elements.suggestionsList.appendChild(li);
+    } else {
+        suggestions.forEach(suggestion => {
+            const li = document.createElement('li');
+            li.textContent = suggestion;
+            elements.suggestionsList.appendChild(li);
+        });
+    }
+
+    // Show results
+    elements.resultsSection.style.display = 'block';
+    elements.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 /**
- * Returns a user-friendly error message based on error type
- * @param {Error} error - The error object
- * @returns {string} User-friendly error message
+ * Get CSS class based on completeness score.
+ */
+function getScoreClass(score) {
+    if (score >= 7) return 'score-high';
+    if (score >= 4) return 'score-medium';
+    return 'score-low';
+}
+
+/**
+ * Get user-friendly error message.
  */
 function getErrorMessage(error) {
     if (error.message.includes('429')) {
-        return 'Rate limit exceeded. Please wait a moment and try again.';
+        return 'Rate limit exceeded. Please try again later.';
     }
-    if (error.message.includes('NetworkError') || error.message.includes('fetch')) {
-        return 'Unable to connect to the server. Please check your connection and try again.';
+    if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+        return 'Unable to connect to the server. Please check your connection.';
     }
-    return error.message || 'An unexpected error occurred. Please try again.';
+    return error.message || 'An unexpected error occurred.';
 }
 
+// =============================================================================
+// Event Handlers
+// =============================================================================
+
 /**
- * Handles Enter key press in textarea to submit
+ * Handle the evaluate button click.
  */
+async function handleEvaluate() {
+    const requirementText = elements.input.value.trim();
+
+    // Validate input
+    if (!requirementText) {
+        showError('Please enter a requirement to evaluate.');
+        return;
+    }
+
+    if (requirementText.length < 10) {
+        showError('Requirement must be at least 10 characters long.');
+        return;
+    }
+
+    // Start evaluation
+    hideError();
+    setLoading(true);
+    elements.resultsSection.style.display = 'none';
+
+    try {
+        const results = await evaluateRequirement(requirementText);
+        displayResults(results);
+    } catch (error) {
+        console.error('Evaluation error:', error);
+        showError(getErrorMessage(error));
+    } finally {
+        setLoading(false);
+    }
+}
+
+// =============================================================================
+// Initialization
+// =============================================================================
+
 document.addEventListener('DOMContentLoaded', () => {
-    const textarea = document.getElementById('requirement-input');
-    
-    textarea.addEventListener('keydown', (event) => {
-        // Submit on Ctrl+Enter or Cmd+Enter
+    // Button click handler
+    elements.button.addEventListener('click', handleEvaluate);
+
+    // Ctrl+Enter to submit
+    elements.input.addEventListener('keydown', (event) => {
         if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
             event.preventDefault();
-            evaluateRequirement();
+            handleEvaluate();
         }
     });
 });

@@ -1,40 +1,53 @@
-# Dependencies
-node_modules/
-
-# Build output
-dist/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
-.aws-sam/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
 
-# Coverage reports
-coverage/
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
 
-# IDE files
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform.lock.hcl
+
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
-# Environment files
+# Lambda deployment
+*.zip
+
+# Environment
 .env
 .env.local
-.env.*.local
-
-# Log files
-*.log
-npm-debug.log*
-
-# SAM CLI temporary files
-.aws-sam/
-
-# Test output
-junit.xml
-test-results/
-
-# Temporary files
-tmp/
-temp/

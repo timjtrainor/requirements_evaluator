@@ -2,12 +2,21 @@
 
 A serverless application that evaluates software requirements using Amazon Bedrock AI. The application analyzes requirements for **ambiguity**, **testability**, and **completeness**, providing structured feedback and improvement suggestions.
 
+## Overview
+
+This project demonstrates AI reliability thinking by using Amazon Bedrock (Claude 3 Haiku) to analyze software requirements. It evaluates:
+
+- **Ambiguity**: Identifies vague, unclear, or subjective language
+- **Testability**: Assesses whether the requirement has measurable acceptance criteria
+- **Completeness**: Scores how complete the requirement is (1-10 scale)
+- **Issues & Suggestions**: Provides specific feedback for improvement
+
 ## Architecture
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │   CloudFront    │────▶│   API Gateway   │────▶│     Lambda      │
-│   + S3 Static   │     │    (REST API)   │     │   (Node.js)     │
+│   + S3 Static   │     │    (HTTP API)   │     │   (Python)      │
 │     Frontend    │     │                 │     │                 │
 └─────────────────┘     └─────────────────┘     └────────┬────────┘
                                                          │
@@ -18,162 +27,116 @@ A serverless application that evaluates software requirements using Amazon Bedro
                                                          │
                         ┌─────────────────┐              │
                         │ Amazon Bedrock  │◀─────────────┘
-                        │  (Claude 3)     │
-                        └─────────────────┘
-
-                        ┌─────────────────┐
-                        │   CloudWatch    │
-                        │ (Logs/Metrics)  │
+                        │(Claude 3 Haiku) │
                         └─────────────────┘
 ```
 
-## Features
+### Components
 
-- **AI-Powered Analysis**: Uses Amazon Bedrock (Claude 3 Sonnet) to evaluate requirements
-- **Three Evaluation Dimensions**:
-  - **Ambiguity**: Identifies vague or unclear language
-  - **Testability**: Assesses if requirements can be objectively tested
-  - **Completeness**: Evaluates if all necessary information is present
-- **Actionable Suggestions**: Provides specific improvement recommendations
-- **Rate Limiting**: Protects against abuse using DynamoDB-based rate limiting
-- **Monitoring**: CloudWatch dashboard and alarms for operational visibility
-- **Fully Serverless**: Pay-per-use infrastructure with automatic scaling
+- **Frontend**: Static HTML/CSS/JS served via S3 + CloudFront
+- **API Gateway**: HTTP API handling POST /evaluate requests
+- **Lambda**: Python function that validates input, checks rate limits, and calls Bedrock
+- **DynamoDB**: Stores daily request counts per IP for rate limiting
+- **Bedrock**: Claude 3 Haiku model for requirement analysis
 
 ## Project Structure
 
 ```
 requirements_evaluator/
-├── frontend/                 # Static web application
-│   ├── index.html           # Main HTML file
-│   ├── styles.css           # CSS styles
-│   └── app.js               # Frontend JavaScript
+├── frontend/               # Static web UI
+│   ├── index.html         # Main HTML file
+│   ├── styles.css         # Styles
+│   └── app.js             # Frontend JavaScript
 │
-├── backend/                  # Lambda function code
-│   ├── src/
-│   │   ├── index.js         # Lambda handler
-│   │   ├── evaluator.js     # Bedrock integration
-│   │   ├── rateLimit.js     # Rate limiting logic
-│   │   └── logger.js        # Logging utility
-│   ├── tests/               # Unit tests
-│   │   ├── handler.test.js
-│   │   └── logger.test.js
-│   ├── package.json
-│   ├── jest.config.js
-│   └── .eslintrc.cjs
+├── backend/               # Lambda function code (Python)
+│   ├── handler.py         # Main Lambda handler
+│   ├── rate_limit.py      # DynamoDB rate limiting
+│   ├── eval_harness.py    # Evaluation testing harness
+│   ├── eval_dataset.json  # Sample evaluation dataset
+│   └── requirements.txt   # Python dependencies
 │
-├── infrastructure/           # AWS SAM templates
-│   ├── template.yaml        # CloudFormation template
-│   └── samconfig.toml       # SAM CLI configuration
+├── infra/                 # Terraform infrastructure
+│   ├── main.tf            # Main Terraform configuration
+│   ├── variables.tf       # Variable definitions
+│   └── outputs.tf         # Output definitions
 │
-└── README.md
+├── README.md
+└── .gitignore
 ```
 
-## Prerequisites
+## Setup Instructions
 
-- [AWS CLI](https://aws.amazon.com/cli/) configured with appropriate credentials
-- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
-- [Node.js 20.x](https://nodejs.org/) or later
-- Access to Amazon Bedrock with Claude 3 model enabled
+### Prerequisites
 
-## Quick Start
+- AWS CLI configured with appropriate credentials
+- Terraform >= 1.0
+- Python 3.11+
+- Access to Amazon Bedrock with Claude 3 Haiku model enabled
 
 ### 1. Enable Amazon Bedrock Model Access
 
-Before deploying, ensure you have access to the Claude 3 Sonnet model in Amazon Bedrock:
-
 1. Go to the [Amazon Bedrock Console](https://console.aws.amazon.com/bedrock)
 2. Navigate to "Model access"
-3. Request access to "Claude 3 Sonnet" from Anthropic
-4. Wait for access approval (usually instant)
+3. Request access to "Claude 3 Haiku" from Anthropic
+4. Wait for access approval
 
-### 2. Install Backend Dependencies
-
-```bash
-cd backend
-npm install
-```
-
-### 3. Run Tests
+### 2. Deploy Infrastructure with Terraform
 
 ```bash
-cd backend
-npm test
+cd infra
+
+# Initialize Terraform
+terraform init
+
+# Review the plan
+terraform plan
+
+# Deploy (this will create all AWS resources)
+terraform apply
 ```
 
-### 4. Deploy the Application
+Save the outputs - you'll need them for configuring the frontend.
 
-```bash
-# Build the application
-cd infrastructure
-sam build
+### 3. Configure the Frontend
 
-# Deploy to AWS (dev environment)
-sam deploy --config-env dev
-```
-
-### 5. Upload Frontend Assets
-
-After deployment, upload the frontend files to S3:
-
-```bash
-# Get the bucket name from deployment output
-BUCKET_NAME=$(aws cloudformation describe-stacks \
-  --stack-name requirements-evaluator-dev \
-  --query 'Stacks[0].Outputs[?OutputKey==`FrontendBucketName`].OutputValue' \
-  --output text)
-
-# Upload frontend assets
-aws s3 sync frontend/ s3://$BUCKET_NAME/
-```
-
-### 6. Configure Frontend API Endpoint
-
-Update the `API_ENDPOINT` in the frontend to point to your CloudFront distribution:
+Edit `frontend/app.js` and update the `CONFIG.API_BASE_URL`:
 
 ```javascript
-// frontend/app.js
 const CONFIG = {
-    API_ENDPOINT: 'https://your-cloudfront-domain.cloudfront.net/api/evaluate'
+    API_BASE_URL: 'https://your-cloudfront-domain.cloudfront.net',
+    EVALUATE_ENDPOINT: '/evaluate'
 };
 ```
 
-Then re-upload the frontend:
+### 4. Upload Frontend Assets
 
 ```bash
-aws s3 sync frontend/ s3://$BUCKET_NAME/
+# Get the bucket name from Terraform output
+BUCKET_NAME=$(terraform output -raw frontend_bucket_name)
+
+# Upload frontend files
+aws s3 sync ../frontend/ s3://$BUCKET_NAME/
 ```
 
-### 7. Access the Application
+### 5. Access the Application
 
-Get the CloudFront URL from the deployment outputs:
+Get the CloudFront URL:
 
 ```bash
-aws cloudformation describe-stacks \
-  --stack-name requirements-evaluator-dev \
-  --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' \
-  --output text
+terraform output cloudfront_url
 ```
 
-## Configuration
+## Lambda Configuration
 
-### Environment Variables
+The Lambda function uses these environment variables (set by Terraform):
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `RATE_LIMIT_TABLE` | DynamoDB table name for rate limiting | Auto-generated |
-| `RATE_LIMIT_MAX` | Maximum requests per window | 10 |
-| `RATE_LIMIT_WINDOW` | Rate limit window in seconds | 60 |
-| `BEDROCK_MODEL_ID` | Bedrock model to use | `anthropic.claude-3-sonnet-20240229-v1:0` |
-| `LOG_LEVEL` | Logging level (DEBUG, INFO, WARN, ERROR) | INFO |
-
-### Deployment Parameters
-
-Modify `infrastructure/samconfig.toml` to customize deployment:
-
-- `Environment`: Deployment stage (dev, staging, prod)
-- `RateLimitMax`: Maximum requests per rate limit window
-- `RateLimitWindowSeconds`: Duration of rate limit window
-- `BedrockModelId`: Amazon Bedrock model ID
+| `RATE_LIMIT_TABLE` | DynamoDB table name | Auto-generated |
+| `DAILY_RATE_LIMIT` | Max requests per IP per day | 50 |
+| `BEDROCK_REGION` | AWS region for Bedrock | us-east-1 |
+| `BEDROCK_MODEL_ID` | Bedrock model ID | anthropic.claude-3-haiku-20240307-v1:0 |
+| `LOG_LEVEL` | Logging level | INFO |
 
 ## API Reference
 
@@ -182,33 +145,28 @@ Modify `infrastructure/samconfig.toml` to customize deployment:
 Evaluates a software requirement.
 
 **Request:**
-
 ```json
 {
-    "requirement": "The system shall allow users to log in using their email and password within 3 seconds."
+    "requirementText": "The system shall allow users to log in within 3 seconds."
 }
 ```
 
 **Response:**
-
 ```json
 {
-    "ambiguity": {
-        "score": 8,
-        "feedback": "The requirement is mostly clear with specific authentication method and time constraint."
-    },
-    "testability": {
-        "score": 9,
-        "feedback": "The 3-second response time provides a measurable acceptance criterion."
-    },
-    "completeness": {
-        "score": 7,
-        "feedback": "Missing error handling scenarios and security considerations."
-    },
+    "ambiguity_detected": false,
+    "ambiguity_details": "The requirement is clear with specific time constraint.",
+    "testable": true,
+    "testability_details": "The 3-second response time provides a measurable criterion.",
+    "completeness_score": 7,
+    "completeness_details": "Missing error handling and security details.",
+    "issues": [
+        "No error handling specified",
+        "Authentication method not defined"
+    ],
     "suggestions": [
-        "Add error handling for invalid credentials",
-        "Specify password complexity requirements",
-        "Define behavior for locked accounts"
+        "Add error handling for failed login attempts",
+        "Specify the authentication mechanism (email/password, SSO, etc.)"
     ]
 }
 ```
@@ -217,118 +175,118 @@ Evaluates a software requirement.
 
 | Status | Description |
 |--------|-------------|
-| 400 | Invalid request (missing or invalid requirement) |
+| 400 | Invalid request (missing/invalid requirementText) |
 | 429 | Rate limit exceeded |
 | 500 | Internal server error |
 
-## Development
+## Running the Evaluation Harness
 
-### Running Locally
-
-You can test the Lambda function locally using SAM:
-
-```bash
-cd infrastructure
-
-# Start local API
-sam local start-api
-
-# Test with curl
-curl -X POST http://localhost:3000/evaluate \
-  -H "Content-Type: application/json" \
-  -d '{"requirement": "The system shall display user profile information"}'
-```
-
-Note: Local testing requires AWS credentials configured for Bedrock access.
-
-### Linting
+The eval harness tests the AI evaluator against a labeled dataset:
 
 ```bash
 cd backend
-npm run lint
 
-# Auto-fix issues
-npm run lint:fix
+# Install dependencies
+pip install -r requirements.txt
+
+# Set environment variables
+export BEDROCK_REGION=us-east-1
+export BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0
+
+# Run evaluation
+python eval_harness.py
+
+# Save detailed results to file
+EVAL_OUTPUT=results.json python eval_harness.py
 ```
 
-### Testing
+The harness computes:
+- **Accuracy**: Percentage of correct predictions
+- **Precision/Recall**: For ambiguity and testability detection
+- **FP/FN rates**: False positive and false negative counts
+- **Completeness threshold accuracy**: How often the score is within threshold
 
-```bash
-cd backend
-npm test
+## Cost and Safety Notes
+
+### Cost Considerations
+
+- **Lambda**: Pay per invocation and duration (~$0.0000002 per request)
+- **API Gateway**: $1.00 per million requests
+- **DynamoDB**: Pay per request (~$1.25 per million writes)
+- **Bedrock (Claude 3 Haiku)**: $0.00025 per 1K input tokens, $0.00125 per 1K output tokens
+- **S3 + CloudFront**: Minimal for static hosting
+
+**Estimated cost**: ~$0.01-0.02 per evaluation
+
+### Safety Measures
+
+- **Rate Limiting**: Daily limit per IP prevents abuse
+- **Input Validation**: Rejects empty or overly long inputs
+- **Error Handling**: Graceful error responses without exposing internals
+- **Fail Open**: Rate limiting fails open to avoid blocking legitimate requests
+
+## AI Reliability Thinking
+
+This project demonstrates several AI reliability patterns:
+
+1. **Structured Output**: Uses a JSON schema to get consistent, parseable responses from the AI model
+
+2. **Low Temperature**: Uses temperature=0.2 for more deterministic, consistent evaluations
+
+3. **Clear Prompting**: The evaluation prompt provides explicit guidelines and examples
+
+4. **Evaluation Harness**: The `eval_harness.py` script allows systematic testing of AI quality:
+   - Measures accuracy against labeled samples
+   - Computes precision/recall for binary classifications
+   - Tracks completeness score accuracy within thresholds
+
+5. **Graceful Degradation**: If AI response parsing fails, returns a structured error response
+
+6. **Rate Limiting**: Prevents cost overruns and abuse
+
+## Customization
+
+### Changing the Rate Limit
+
+Edit `infra/variables.tf`:
+
+```hcl
+variable "daily_rate_limit" {
+  default = 100  # Change to your desired limit
+}
 ```
 
-## Monitoring
+### Using a Different Model
 
-### CloudWatch Dashboard
+Edit `infra/variables.tf`:
 
-A CloudWatch dashboard is automatically created with:
-- Lambda invocation count
-- Lambda errors
-- Lambda duration
-- API Gateway request count
+```hcl
+variable "bedrock_model_id" {
+  default = "anthropic.claude-3-sonnet-20240229-v1:0"  # Or another model
+}
+```
 
-Access the dashboard from the deployment outputs.
+### Modifying the Evaluation Prompt
 
-### CloudWatch Alarms
-
-An alarm is configured to alert when Lambda errors exceed 5 in a 5-minute period.
-
-## Cost Considerations
-
-This serverless architecture uses pay-per-use pricing:
-
-- **Lambda**: Charged per invocation and duration
-- **API Gateway**: Charged per request
-- **DynamoDB**: Pay-per-request billing mode
-- **S3**: Charged for storage and data transfer
-- **CloudFront**: Charged for data transfer and requests
-- **Bedrock**: Charged per input/output token
-
-For cost optimization:
-- Enable DynamoDB TTL for automatic cleanup (already configured)
-- Use CloudFront caching for static assets
-- Implement rate limiting to prevent abuse
-
-## Security
-
-- CORS is configured to allow cross-origin requests (customize for production)
-- API Gateway throttling limits burst traffic
-- Rate limiting prevents abuse from individual IPs
-- CloudFront uses HTTPS only
-- S3 bucket blocks public access; only CloudFront can access it
+Edit `backend/handler.py`, function `build_evaluation_prompt()`.
 
 ## Troubleshooting
 
-### Common Issues
+### "Access Denied" for Bedrock
 
-1. **"Access Denied" for Bedrock**
-   - Ensure you've requested access to the Claude 3 model in the Bedrock console
-   - Verify the Lambda function has the correct IAM permissions
+- Ensure you've requested access to Claude 3 Haiku in the Bedrock console
+- Verify the Lambda role has the correct IAM permissions
 
-2. **CORS Errors**
-   - Check that the `API_ENDPOINT` in frontend matches your deployment
-   - Verify CloudFront is properly routing `/api/*` paths to API Gateway
+### CORS Errors
 
-3. **Rate Limiting Not Working**
-   - Ensure DynamoDB table exists and Lambda has permissions
-   - Check CloudWatch logs for rate limiting errors
+- Ensure `API_BASE_URL` in `app.js` matches your CloudFront domain
+- Check API Gateway CORS configuration
 
-### Viewing Logs
+### Rate Limit Errors (429)
 
-```bash
-# View Lambda logs
-sam logs -n requirements-evaluator-dev --stack-name requirements-evaluator-dev --tail
-```
+- Wait until the next day (UTC) for the limit to reset
+- Or increase `daily_rate_limit` in Terraform variables
 
 ## License
 
-ISC
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Run linting and tests
-5. Submit a pull request
+MIT

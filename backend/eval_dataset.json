@@ -1,0 +1,105 @@
+{
+  "description": "Sample evaluation dataset for testing the AI requirements evaluator",
+  "samples": [
+    {
+      "requirement": "The system shall respond quickly to user requests.",
+      "expected": {
+        "ambiguity_detected": true,
+        "testable": false,
+        "completeness_score": 3,
+        "completeness_threshold": 2
+      },
+      "notes": "Vague requirement - 'quickly' is not defined"
+    },
+    {
+      "requirement": "The system shall allow users to log in using email and password, with authentication completing within 3 seconds.",
+      "expected": {
+        "ambiguity_detected": false,
+        "testable": true,
+        "completeness_score": 7,
+        "completeness_threshold": 2
+      },
+      "notes": "Clear requirement with measurable time constraint"
+    },
+    {
+      "requirement": "The application should be user-friendly.",
+      "expected": {
+        "ambiguity_detected": true,
+        "testable": false,
+        "completeness_score": 2,
+        "completeness_threshold": 2
+      },
+      "notes": "Highly subjective and untestable"
+    },
+    {
+      "requirement": "The system shall store user data securely using AES-256 encryption at rest and TLS 1.3 for data in transit.",
+      "expected": {
+        "ambiguity_detected": false,
+        "testable": true,
+        "completeness_score": 8,
+        "completeness_threshold": 2
+      },
+      "notes": "Specific security requirement with verifiable standards"
+    },
+    {
+      "requirement": "Users must be able to reset their password.",
+      "expected": {
+        "ambiguity_detected": true,
+        "testable": false,
+        "completeness_score": 4,
+        "completeness_threshold": 2
+      },
+      "notes": "Missing details about the reset process, validation, etc."
+    },
+    {
+      "requirement": "The API shall return HTTP 200 for successful requests and HTTP 400 for invalid input, with response times under 500ms for 95% of requests.",
+      "expected": {
+        "ambiguity_detected": false,
+        "testable": true,
+        "completeness_score": 8,
+        "completeness_threshold": 2
+      },
+      "notes": "Well-defined API behavior with performance requirements"
+    },
+    {
+      "requirement": "The system should handle errors gracefully.",
+      "expected": {
+        "ambiguity_detected": true,
+        "testable": false,
+        "completeness_score": 2,
+        "completeness_threshold": 2
+      },
+      "notes": "Vague - what does 'gracefully' mean?"
+    },
+    {
+      "requirement": "The system shall support concurrent access by at least 1000 users without degradation in response time (defined as average response time staying below 200ms).",
+      "expected": {
+        "ambiguity_detected": false,
+        "testable": true,
+        "completeness_score": 9,
+        "completeness_threshold": 2
+      },
+      "notes": "Specific scalability requirement with measurable criteria"
+    },
+    {
+      "requirement": "The UI should look modern.",
+      "expected": {
+        "ambiguity_detected": true,
+        "testable": false,
+        "completeness_score": 1,
+        "completeness_threshold": 2
+      },
+      "notes": "Subjective aesthetic requirement"
+    },
+    {
+      "requirement": "The system shall send email notifications to users within 5 minutes of triggering events, with a delivery success rate of at least 99.5%.",
+      "expected": {
+        "ambiguity_detected": false,
+        "testable": true,
+        "completeness_score": 8,
+        "completeness_threshold": 2
+      },
+      "notes": "Specific notification requirement with SLA"
+    }
+  ]
+}

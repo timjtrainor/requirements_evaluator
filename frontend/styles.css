@@ -1,9 +1,5 @@
-/* 
- * AI Requirements Quality Evaluator - Styles
- * Clean, modern design for requirement evaluation interface
- */
+/* AI Requirements Quality Evaluator - Styles */
 
-/* CSS Reset and Base Styles */
 * {
     margin: 0;
     padding: 0;
@@ -11,89 +7,72 @@
 }
 
 :root {
-    /* Color palette */
     --primary-color: #2563eb;
     --primary-hover: #1d4ed8;
     --success-color: #10b981;
     --warning-color: #f59e0b;
     --error-color: #ef4444;
-    --background-color: #f8fafc;
-    --card-background: #ffffff;
+    --bg-color: #f8fafc;
+    --card-bg: #ffffff;
     --text-primary: #1e293b;
     --text-secondary: #64748b;
     --border-color: #e2e8f0;
-    
-    /* Spacing */
-    --spacing-xs: 0.25rem;
-    --spacing-sm: 0.5rem;
-    --spacing-md: 1rem;
-    --spacing-lg: 1.5rem;
-    --spacing-xl: 2rem;
-    
-    /* Border radius */
-    --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    background-color: var(--background-color);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-color);
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
 }
 
-/* Container */
 .container {
-    max-width: 900px;
+    max-width: 800px;
     margin: 0 auto;
-    padding: var(--spacing-xl);
+    padding: 2rem;
 }
 
-/* Header Styles */
+/* Header */
 header {
     text-align: center;
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: 2rem;
 }
 
 header h1 {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 0.5rem;
 }
 
 .subtitle {
     color: var(--text-secondary);
-    font-size: 1.1rem;
 }
 
 /* Input Section */
 .input-section {
-    background: var(--card-background);
-    padding: var(--spacing-xl);
-    border-radius: var(--radius-lg);
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: 1.5rem;
 }
 
 .input-section label {
     display: block;
     font-weight: 600;
-    margin-bottom: var(--spacing-sm);
-    color: var(--text-primary);
+    margin-bottom: 0.5rem;
 }
 
 .input-section textarea {
     width: 100%;
-    padding: var(--spacing-md);
+    padding: 0.75rem;
     border: 2px solid var(--border-color);
-    border-radius: var(--radius-md);
+    border-radius: 6px;
     font-size: 1rem;
     font-family: inherit;
     resize: vertical;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s;
 }
 
 .input-section textarea:focus {
@@ -101,31 +80,22 @@ header h1 {
     border-color: var(--primary-color);
 }
 
-.input-section textarea::placeholder {
-    color: var(--text-secondary);
-}
-
-/* Evaluate Button */
 #evaluate-btn {
     width: 100%;
-    padding: var(--spacing-md) var(--spacing-lg);
-    margin-top: var(--spacing-md);
+    padding: 0.75rem 1.5rem;
+    margin-top: 1rem;
     background-color: var(--primary-color);
     color: white;
     border: none;
-    border-radius: var(--radius-md);
+    border-radius: 6px;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.1s ease;
+    transition: background-color 0.2s;
 }
 
 #evaluate-btn:hover:not(:disabled) {
     background-color: var(--primary-hover);
-}
-
-#evaluate-btn:active:not(:disabled) {
-    transform: scale(0.98);
 }
 
 #evaluate-btn:disabled {
@@ -135,155 +105,139 @@ header h1 {
 
 /* Results Section */
 .results-section {
-    background: var(--card-background);
-    padding: var(--spacing-xl);
-    border-radius: var(--radius-lg);
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: 1.5rem;
 }
 
 .results-section h2 {
-    font-size: 1.5rem;
-    margin-bottom: var(--spacing-lg);
-    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
 }
 
-/* Overall Score */
-.overall-score {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-md);
-    padding: var(--spacing-lg);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: var(--radius-md);
-    margin-bottom: var(--spacing-xl);
-}
-
-.score-label {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: white;
-}
-
-.score-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: white;
-}
-
-/* Evaluation Grid */
-.evaluation-grid {
+/* Summary Grid */
+.summary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
 }
 
-/* Evaluation Cards */
-.evaluation-card {
-    padding: var(--spacing-lg);
+.summary-card {
+    padding: 1rem;
     border: 2px solid var(--border-color);
-    border-radius: var(--radius-md);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 6px;
+    text-align: center;
 }
 
-.evaluation-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.summary-card h3 {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
 }
 
-.evaluation-card h3 {
-    font-size: 1.1rem;
-    margin-bottom: var(--spacing-sm);
-    color: var(--text-primary);
+.summary-card .indicator {
+    font-size: 1.25rem;
+    font-weight: 700;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    display: inline-block;
 }
 
-.score-indicator {
-    display: flex;
-    align-items: baseline;
-    margin-bottom: var(--spacing-sm);
-}
-
-.category-score {
-    font-size: 2rem;
+.summary-card .score {
+    font-size: 1.5rem;
     font-weight: 700;
 }
 
-.score-max {
-    font-size: 1rem;
+.summary-card .details {
+    font-size: 0.85rem;
     color: var(--text-secondary);
-    margin-left: var(--spacing-xs);
+    margin-top: 0.5rem;
 }
 
-.category-description {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
+/* Status indicators */
+.status-good {
+    background-color: #dcfce7;
+    color: var(--success-color);
 }
 
-/* Score color classes */
+.status-bad {
+    background-color: #fef2f2;
+    color: var(--error-color);
+}
+
 .score-high {
     color: var(--success-color);
-    border-color: var(--success-color);
 }
 
 .score-medium {
     color: var(--warning-color);
-    border-color: var(--warning-color);
 }
 
 .score-low {
     color: var(--error-color);
-    border-color: var(--error-color);
 }
 
-/* Suggestions Section */
+/* Issues and Suggestions */
+.issues-section,
 .suggestions-section {
-    padding-top: var(--spacing-lg);
+    margin-top: 1.5rem;
+    padding-top: 1rem;
     border-top: 1px solid var(--border-color);
 }
 
+.issues-section h3,
 .suggestions-section h3 {
-    font-size: 1.1rem;
-    margin-bottom: var(--spacing-md);
-    color: var(--text-primary);
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
 }
 
-#suggestions-list {
+.issues-section ul,
+.suggestions-section ul {
     list-style: none;
+    padding-left: 0;
 }
 
-#suggestions-list li {
-    padding: var(--spacing-sm) 0;
-    padding-left: var(--spacing-lg);
+.issues-section li,
+.suggestions-section li {
+    padding: 0.5rem 0;
+    padding-left: 1.5rem;
     position: relative;
     color: var(--text-secondary);
 }
 
-#suggestions-list li::before {
+.issues-section li::before {
+    content: "⚠";
+    position: absolute;
+    left: 0;
+}
+
+.suggestions-section li::before {
     content: "→";
     position: absolute;
     left: 0;
     color: var(--primary-color);
-    font-weight: 600;
 }
 
 /* Error Section */
 .error-section {
     background: #fef2f2;
     border: 1px solid #fecaca;
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .error-message {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: 0.75rem;
 }
 
 .error-icon {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
 }
 
 .error-message p {
@@ -294,46 +248,32 @@ header h1 {
 /* Footer */
 footer {
     text-align: center;
-    padding-top: var(--spacing-xl);
-    border-top: 1px solid var(--border-color);
+    padding-top: 1.5rem;
     color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .container {
-        padding: var(--spacing-md);
-    }
-
-    header h1 {
-        font-size: 1.5rem;
-    }
-
-    .subtitle {
-        font-size: 1rem;
-    }
-
-    .overall-score {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .evaluation-grid {
-        grid-template-columns: 1fr;
-    }
+    font-size: 0.85rem;
 }
 
 /* Loading Animation */
 @keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 .btn-loader {
     animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .container {
+        padding: 1rem;
+    }
+    
+    header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
 }
