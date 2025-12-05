@@ -9,6 +9,7 @@ and returns structured evaluation results.
 import json
 import logging
 import os
+from textwrap import dedent
 from typing import Any
 
 import boto3
@@ -81,37 +82,42 @@ def validate_request(body: dict) -> tuple[bool, str]:
 def build_evaluation_prompt(requirement_text: str) -> str:
     """
     Build the prompt for Bedrock to evaluate the requirement.
-    
+
     Args:
         requirement_text: The software requirement to evaluate
-        
+
     Returns:
         Formatted prompt string
     """
-    return f"""You are an expert software requirements analyst. Analyze the following software requirement and provide a structured evaluation.
+    return dedent(
+        f"""
+        You are an expert software requirements analyst. Analyze the following
+        software requirement and provide a structured evaluation.
 
-Requirement to evaluate:
-"{requirement_text}"
+        Requirement to evaluate:
+        "{requirement_text}"
 
-Evaluate the requirement and respond with ONLY valid JSON in this exact format:
-{{
-    "ambiguity_detected": true/false,
-    "ambiguity_details": "explanation of any ambiguous terms or phrases, or 'None' if clear",
-    "testable": true/false,
-    "testability_details": "explanation of whether the requirement can be objectively tested",
-    "completeness_score": 1-10,
-    "completeness_details": "explanation of what information may be missing",
-    "issues": ["list", "of", "specific", "issues"],
-    "suggestions": ["list", "of", "improvement", "suggestions"]
-}}
+        Evaluate the requirement and respond with ONLY valid JSON in this exact format:
+        {{
+            "ambiguity_detected": true/false,
+            "ambiguity_details": "explanation of any ambiguous terms or phrases, or 'None' if clear",
+            "testable": true/false,
+            "testability_details": "explanation of whether the requirement can be objectively tested",
+            "completeness_score": 1-10,
+            "completeness_details": "explanation of what information may be missing",
+            "issues": ["list", "of", "specific", "issues"],
+            "suggestions": ["list", "of", "improvement", "suggestions"]
+        }}
 
-Important guidelines:
-- ambiguity_detected: true if the requirement contains vague, unclear, or subjective language
-- testable: true if the requirement has measurable, verifiable acceptance criteria
-- completeness_score: 1 (very incomplete) to 10 (fully complete)
-- Be specific and actionable in your feedback
+        Important guidelines:
+        - ambiguity_detected: true if the requirement contains vague, unclear, or subjective language
+        - testable: true if the requirement has measurable, verifiable acceptance criteria
+        - completeness_score: 1 (very incomplete) to 10 (fully complete)
+        - Be specific and actionable in your feedback
 
-Respond with ONLY the JSON object, no additional text."""
+        Respond with ONLY the JSON object, no additional text.
+        """
+    ).strip()
 
 
 def call_bedrock(requirement_text: str) -> dict:
