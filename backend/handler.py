@@ -69,6 +69,9 @@ def validate_request(body: dict) -> tuple[bool, str]:
     if len(requirement_text.strip()) == 0:
         return False, "requirementText cannot be empty"
     
+    if len(requirement_text.strip()) < 10:
+        return False, "requirementText must be at least 10 characters"
+    
     if len(requirement_text) > 5000:
         return False, "requirementText exceeds maximum length of 5000 characters"
     
@@ -208,8 +211,10 @@ def handler(event: dict, context: Any) -> dict:
     """
     logger.info(f"Received event: {json.dumps(event)}")
     
+    # Handle both API Gateway v1 (REST API) and v2 (HTTP API) event formats
+    http_method = event.get("httpMethod") or event.get("requestContext", {}).get("http", {}).get("method", "")
+    
     # Handle CORS preflight
-    http_method = event.get("httpMethod", "")
     if http_method == "OPTIONS":
         return create_response(200, {"message": "OK"})
     

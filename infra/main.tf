@@ -359,7 +359,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   ordered_cache_behavior {
-    path_pattern           = "/evaluate*"
+    path_pattern           = "/evaluate"
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD"]
     target_origin_id       = "APIOrigin"

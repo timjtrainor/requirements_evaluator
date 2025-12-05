@@ -10,13 +10,23 @@
 
 /**
  * API Configuration
- * Replace API_BASE_URL with your actual API Gateway or CloudFront URL after deployment.
  * 
- * For local development with SAM: http://localhost:3000
- * For production: https://your-cloudfront-domain.cloudfront.net
+ * IMPORTANT: Set API_BASE_URL after deploying your infrastructure.
+ * 
+ * For CloudFront deployment:
+ *   API_BASE_URL: '' (empty string - uses relative path from same domain)
+ * 
+ * For direct API Gateway access:
+ *   API_BASE_URL: 'https://abc123.execute-api.us-east-1.amazonaws.com'
+ * 
+ * For local development:
+ *   API_BASE_URL: 'http://localhost:3000'
+ * 
+ * When deployed to CloudFront, leave API_BASE_URL empty since CloudFront
+ * routes /evaluate requests to API Gateway automatically.
  */
 const CONFIG = {
-    API_BASE_URL: '', // Set this after deployment (e.g., 'https://d1234abcd.cloudfront.net')
+    API_BASE_URL: '', // Empty for CloudFront deployment (routes via path_pattern)
     EVALUATE_ENDPOINT: '/evaluate'
 };
 
