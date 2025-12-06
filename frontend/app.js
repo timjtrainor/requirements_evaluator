@@ -53,7 +53,11 @@ const elements = {
     completenessDetails: document.getElementById('completeness-details'),
     completenessCard: document.getElementById('completeness-card'),
     issuesList: document.getElementById('issues-list'),
-    suggestionsList: document.getElementById('suggestions-list')
+    suggestionsList: document.getElementById('suggestions-list'),
+    // Feedback elements
+    feedbackHelpful: document.getElementById('feedback-helpful'),
+    feedbackNotHelpful: document.getElementById('feedback-not-helpful'),
+    feedbackMessage: document.getElementById('feedback-message')
 };
 
 // =============================================================================
@@ -123,6 +127,9 @@ function hideError() {
  * Display the evaluation results.
  */
 function displayResults(results) {
+    // Reset feedback
+    resetFeedback();
+    
     // Ambiguity
     const ambiguityDetected = results.ambiguity_detected;
     elements.ambiguityIndicator.textContent = ambiguityDetected ? 'Detected' : 'Clear';
@@ -198,6 +205,45 @@ function getErrorMessage(error) {
     return error.message || 'An unexpected error occurred.';
 }
 
+/**
+ * Reset feedback state.
+ */
+function resetFeedback() {
+    elements.feedbackHelpful.classList.remove('selected');
+    elements.feedbackNotHelpful.classList.remove('selected');
+    elements.feedbackHelpful.disabled = false;
+    elements.feedbackNotHelpful.disabled = false;
+    elements.feedbackMessage.style.display = 'none';
+}
+
+/**
+ * Handle feedback button click.
+ */
+function handleFeedback(isHelpful) {
+    // Mark as selected
+    if (isHelpful) {
+        elements.feedbackHelpful.classList.add('selected');
+        elements.feedbackNotHelpful.classList.remove('selected');
+    } else {
+        elements.feedbackNotHelpful.classList.add('selected');
+        elements.feedbackHelpful.classList.remove('selected');
+    }
+    
+    // Disable buttons
+    elements.feedbackHelpful.disabled = true;
+    elements.feedbackNotHelpful.disabled = true;
+    
+    // Show thank you message
+    elements.feedbackMessage.style.display = 'block';
+    
+    // Store feedback (for future implementation with backend)
+    console.log('User feedback:', isHelpful ? 'helpful' : 'not helpful');
+    
+    // TODO: Send feedback to backend for analytics
+    // This could be implemented in a future version to collect
+    // feedback data for improving the model or evaluation criteria
+}
+
 // =============================================================================
 // Event Handlers
 // =============================================================================
@@ -250,4 +296,8 @@ document.addEventListener('DOMContentLoaded', () => {
             handleEvaluate();
         }
     });
+    
+    // Feedback button handlers
+    elements.feedbackHelpful.addEventListener('click', () => handleFeedback(true));
+    elements.feedbackNotHelpful.addEventListener('click', () => handleFeedback(false));
 });
