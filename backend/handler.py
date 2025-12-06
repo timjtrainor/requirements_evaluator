@@ -304,7 +304,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Returns:
         API Gateway response
     """
-    request_id = context.request_id if context else "unknown"
+    request_id = (
+        getattr(context, "aws_request_id", None)
+        or getattr(context, "request_id", None)
+        or "unknown"
+    )
     start_time = time.time()
     
     logger.info(
