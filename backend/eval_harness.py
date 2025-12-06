@@ -12,14 +12,10 @@ from typing import Any
 
 import boto3
 
-# Bedrock configuration
-BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-east-1")
-BEDROCK_MODEL_ID = os.environ.get(
-    "BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"
-)
+from config import Config, validate_response_schema
 
-# Initialize Bedrock client
-bedrock_client = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
+# Initialize Bedrock client using configuration
+bedrock_client = boto3.client("bedrock-runtime", region_name=Config.get_bedrock_region())
 
 
 def build_evaluation_prompt(requirement_text: str) -> str:
@@ -53,30 +49,64 @@ def call_bedrock(requirement_text: str) -> dict:
     """Call Amazon Bedrock to evaluate the requirement."""
     prompt = build_evaluation_prompt(requirement_text)
 
-    request_body = {
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1024,
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        "temperature": 0.2
-    }
+    model_id = Config.get_model_id()
+
+    if model_id.startswith("openai."):
+        request_body = {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.2,
+            "max_tokens": 1024,
+        }
+    else:
+        request_body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 1024,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt,
+                        }
+                    ],
+                }
+            ],
+            "temperature": 0.2
+        }
 
     response = bedrock_client.invoke_model(
-        modelId=BEDROCK_MODEL_ID,
+        modelId=model_id,
         contentType="application/json",
         accept="application/json",
         body=json.dumps(request_body)
     )
 
     response_body = json.loads(response["body"].read())
-    content = response_body.get("content", [{}])[0].get("text", "")
+
+    if model_id.startswith("openai."):
+        first_choice = response_body.get("choices", [{}])[0]
+        message = first_choice.get("message", {})
+        content = message.get("content", "")
+        if isinstance(content, list):
+            content = "".join(block.get("text", "") for block in content if isinstance(block, dict))
+    else:
+        content = response_body.get("content", [{}])[0].get("text", "")
 
     try:
-        return json.loads(content)
+        evaluation = json.loads(content)
+        
+        # Validate the response schema
+        is_valid, error_msg = validate_response_schema(evaluation)
+        if not is_valid:
+            print(f"Warning: Schema validation failed: {error_msg}")
+        
+        return evaluation
     except json.JSONDecodeError:
         return None
 

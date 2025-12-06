@@ -44,3 +44,13 @@ output "cloudfront_url" {
   description = "Full CloudFront URL for the frontend"
   value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
 }
+
+output "bedrock_model_id" {
+  description = "Bedrock model ID configured for evaluations"
+  value       = var.bedrock_model_id
+}
+
+output "bedrock_region" {
+  description = "AWS region where Bedrock is accessed"
+  value       = var.aws_region
+}

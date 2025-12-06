@@ -161,6 +161,8 @@ resource "aws_lambda_function" "evaluator" {
       RATE_LIMIT_TABLE = aws_dynamodb_table.rate_limit.name
       DAILY_RATE_LIMIT = var.daily_rate_limit
       BEDROCK_REGION   = var.aws_region
+      # BEDROCK_MODEL_ID can be overridden via Terraform variable or directly here
+      # See variables.tf for supported models and trade-offs
       BEDROCK_MODEL_ID = var.bedrock_model_id
       LOG_LEVEL        = var.log_level
     }
