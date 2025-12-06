@@ -16,53 +16,13 @@ import boto3
 from botocore.exceptions import ClientError
 
 from config import get_config, validate_response_schema
+from logging_utils import StructuredLogger
 from rate_limit import check_and_increment_quota
 
 # Get configuration singleton
 config = get_config()
 
 # Configure structured JSON logging
-class StructuredLogger:
-    """Structured JSON logger for better observability."""
-    
-    def __init__(self, logger: logging.Logger) -> None:
-        self.logger = logger
-    
-    def _log(self, level: str, message: str, **kwargs: Any) -> None:
-        """Log a structured JSON message."""
-        log_data: Dict[str, Any] = {
-            "timestamp": time.time(),
-            "level": level,
-            "message": message,
-            **kwargs
-        }
-        self.logger.log(
-            getattr(logging, level),
-            json.dumps(log_data)
-        )
-    
-    def debug(self, message: str, **kwargs: Any) -> None:
-        """Log debug message."""
-        self._log("DEBUG", message, **kwargs)
-    
-    def info(self, message: str, **kwargs: Any) -> None:
-        """Log info message."""
-        self._log("INFO", message, **kwargs)
-    
-    def warning(self, message: str, **kwargs: Any) -> None:
-        """Log warning message."""
-        self._log("WARNING", message, **kwargs)
-    
-    def error(self, message: str, **kwargs: Any) -> None:
-        """Log error message."""
-        self._log("ERROR", message, **kwargs)
-    
-    def critical(self, message: str, **kwargs: Any) -> None:
-        """Log critical message."""
-        self._log("CRITICAL", message, **kwargs)
-
-
-# Configure logging
 base_logger = logging.getLogger()
 base_logger.setLevel(config.log_level)
 logger = StructuredLogger(base_logger)

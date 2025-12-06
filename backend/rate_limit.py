@@ -16,48 +16,12 @@ import boto3
 from botocore.exceptions import ClientError
 
 from config import get_config
+from logging_utils import StructuredLogger
 
 # Get configuration
 config = get_config()
 
 # Configure structured logging
-class StructuredLogger:
-    """Structured JSON logger for better observability."""
-    
-    def __init__(self, logger: logging.Logger) -> None:
-        self.logger = logger
-    
-    def _log(self, level: str, message: str, **kwargs: Any) -> None:
-        """Log a structured JSON message."""
-        log_data: Dict[str, Any] = {
-            "timestamp": time.time(),
-            "level": level,
-            "message": message,
-            **kwargs
-        }
-        self.logger.log(
-            getattr(logging, level),
-            json.dumps(log_data)
-        )
-    
-    def debug(self, message: str, **kwargs: Any) -> None:
-        """Log debug message."""
-        self._log("DEBUG", message, **kwargs)
-    
-    def info(self, message: str, **kwargs: Any) -> None:
-        """Log info message."""
-        self._log("INFO", message, **kwargs)
-    
-    def warning(self, message: str, **kwargs: Any) -> None:
-        """Log warning message."""
-        self._log("WARNING", message, **kwargs)
-    
-    def error(self, message: str, **kwargs: Any) -> None:
-        """Log error message."""
-        self._log("ERROR", message, **kwargs)
-
-
-# Configure logging
 base_logger = logging.getLogger()
 logger = StructuredLogger(base_logger)
 

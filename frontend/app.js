@@ -236,12 +236,15 @@ function handleFeedback(isHelpful) {
     // Show thank you message
     elements.feedbackMessage.style.display = 'block';
     
-    // Store feedback (for future implementation with backend)
-    console.log('User feedback:', isHelpful ? 'helpful' : 'not helpful');
-    
     // TODO: Send feedback to backend for analytics
     // This could be implemented in a future version to collect
     // feedback data for improving the model or evaluation criteria
+    // Example implementation:
+    // fetch('/feedback', {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({ helpful: isHelpful, timestamp: Date.now() })
+    // });
 }
 
 // =============================================================================

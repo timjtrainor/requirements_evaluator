@@ -12,8 +12,13 @@ import os
 import sys
 from typing import List, Optional, Tuple
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ValidationError
 from pydantic_settings import BaseSettings
+
+
+class ConfigurationError(Exception):
+    """Raised when configuration validation fails."""
+    pass
 
 
 class Config(BaseSettings):
@@ -222,15 +227,21 @@ def get_config() -> Config:
         Config: The validated configuration instance
         
     Raises:
-        ValidationError: If configuration is invalid
+        ConfigurationError: If configuration is invalid
     """
     global _config_instance
     if _config_instance is None:
         try:
             _config_instance = Config()
-        except Exception as e:
-            print(f"FATAL: Configuration validation failed: {e}", file=sys.stderr)
-            sys.exit(1)
+        except ValidationError as e:
+            error_msg = f"Configuration validation failed: {e}"
+            # For Lambda environment, print to stderr and exit
+            # In other contexts, raise exception for proper handling
+            if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+                print(error_msg, file=sys.stderr)
+                sys.exit(1)
+            else:
+                raise ConfigurationError(error_msg) from e
     return _config_instance
 
 
