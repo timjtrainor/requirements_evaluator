@@ -8,10 +8,12 @@ model-agnostic and can work with different Bedrock models.
 Uses Pydantic for configuration validation with fail-fast behavior.
 """
 
+import json
 import os
 import sys
 from typing import List, Optional, Tuple
 
+import boto3
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from pydantic_settings import BaseSettings
 
@@ -248,10 +250,10 @@ def get_config() -> Config:
 def validate_response_schema(response: dict) -> Tuple[bool, Optional[str]]:
     """
     Validate that a Bedrock response matches the expected schema using Pydantic.
-    
+
     Args:
         response: The parsed response from Bedrock
-        
+
     Returns:
         Tuple of (is_valid, error_message)
     """
@@ -261,3 +263,61 @@ def validate_response_schema(response: dict) -> Tuple[bool, Optional[str]]:
         return True, None
     except Exception as e:
         return False, str(e)
+
+
+def get_secret(secret_name: str, region_name: str = "us-east-1") -> Optional[dict]:
+    """
+    Retrieve a secret from AWS Secrets Manager.
+
+    Args:
+        secret_name: Name or ARN of the secret
+        region_name: AWS region where the secret is stored
+
+    Returns:
+        Dictionary containing the secret values, or None if retrieval fails
+
+    Example:
+        secrets = get_secret("prod/api-keys")
+        api_key = secrets.get("api_key") if secrets else None
+    """
+    try:
+        client = boto3.client("secretsmanager", region_name=region_name)
+        response = client.get_secret_value(SecretId=secret_name)
+
+        if "SecretString" in response:
+            return json.loads(response["SecretString"])
+        else:
+            # Binary secrets are not supported in this implementation
+            return None
+    except Exception as e:
+        # Log error but don't fail - allow fallback to environment variables
+        print(f"Warning: Failed to retrieve secret '{secret_name}': {e}", file=sys.stderr)
+        return None
+
+
+def get_parameter(parameter_name: str, region_name: str = "us-east-1", with_decryption: bool = True) -> Optional[str]:
+    """
+    Retrieve a parameter from AWS Systems Manager Parameter Store.
+
+    Args:
+        parameter_name: Name of the parameter
+        region_name: AWS region where the parameter is stored
+        with_decryption: Whether to decrypt the parameter value
+
+    Returns:
+        Parameter value as string, or None if retrieval fails
+
+    Example:
+        value = get_parameter("/prod/config/rate-limit")
+    """
+    try:
+        client = boto3.client("ssm", region_name=region_name)
+        response = client.get_parameter(
+            Name=parameter_name,
+            WithDecryption=with_decryption
+        )
+        return response["Parameter"]["Value"]
+    except Exception as e:
+        # Log error but don't fail - allow fallback to environment variables
+        print(f"Warning: Failed to retrieve parameter '{parameter_name}': {e}", file=sys.stderr)
+        return None

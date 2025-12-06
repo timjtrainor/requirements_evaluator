@@ -189,17 +189,116 @@ resource "aws_cloudwatch_log_group" "lambda_logs" {
 }
 
 # -----------------------------------------------------------------------------
+# CloudWatch Alarms for Monitoring
+# -----------------------------------------------------------------------------
+
+resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
+  alarm_name          = "${var.project_name}-lambda-errors-${var.environment}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "10"
+  alarm_description   = "Alert when Lambda function has more than 10 errors in 10 minutes"
+  alarm_actions       = []  # Add SNS topic ARN for notifications
+
+  dimensions = {
+    FunctionName = aws_lambda_function.evaluator.function_name
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
+  alarm_name          = "${var.project_name}-lambda-duration-${var.environment}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "Duration"
+  namespace           = "AWS/Lambda"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = "25000"  # 25 seconds - warning before 30s timeout
+  alarm_description   = "Alert when Lambda function average duration exceeds 25 seconds"
+  alarm_actions       = []  # Add SNS topic ARN for notifications
+
+  dimensions = {
+    FunctionName = aws_lambda_function.evaluator.function_name
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "api_5xx_errors" {
+  alarm_name          = "${var.project_name}-api-5xx-errors-${var.environment}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "5XXError"
+  namespace           = "AWS/ApiGateway"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "5"
+  alarm_description   = "Alert when API Gateway returns more than 5 5XX errors in 5 minutes"
+  alarm_actions       = []  # Add SNS topic ARN for notifications
+
+  dimensions = {
+    ApiName = aws_apigatewayv2_api.api.name
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "high_request_rate" {
+  alarm_name          = "${var.project_name}-high-request-rate-${var.environment}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "Count"
+  namespace           = "AWS/ApiGateway"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "100"  # Adjust based on expected traffic
+  alarm_description   = "Alert when API receives more than 100 requests in 5 minutes"
+  alarm_actions       = []  # Add SNS topic ARN for notifications
+
+  dimensions = {
+    ApiName = aws_apigatewayv2_api.api.name
+    Method  = "POST"
+    Resource = "/evaluate"
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+# -----------------------------------------------------------------------------
 # API Gateway
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# API Gateway API Key for Authentication
 # -----------------------------------------------------------------------------
 
 resource "aws_apigatewayv2_api" "api" {
   name          = "${var.project_name}-api-${var.environment}"
   protocol_type = "HTTP"
+  api_key_selection_expression = "$request.header.x-api-key"
 
   cors_configuration {
     allow_origins = ["*"]
     allow_methods = ["POST", "OPTIONS"]
-    allow_headers = ["Content-Type"]
+    allow_headers = ["Content-Type", "x-api-key"]
     max_age       = 3600
   }
 
@@ -207,6 +306,49 @@ resource "aws_apigatewayv2_api" "api" {
     Project     = var.project_name
     Environment = var.environment
   }
+}
+
+resource "aws_apigatewayv2_usage_plan" "api" {
+  name        = "${var.project_name}-usage-plan-${var.environment}"
+  description = "Usage plan for Requirements Evaluator API"
+
+  api_stages {
+    api_id = aws_apigatewayv2_api.api.id
+    stage  = aws_apigatewayv2_stage.default.name
+  }
+
+  quota_settings {
+    limit  = 10000  # requests per month
+    offset = 0
+    period = "MONTH"
+  }
+
+  throttle_settings {
+    burst_limit = 10
+    rate_limit  = 5  # requests per second
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+resource "aws_apigatewayv2_api_key" "api_key" {
+  name    = "${var.project_name}-api-key-${var.environment}"
+  description = "API key for Requirements Evaluator"
+  enabled = true
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+resource "aws_apigatewayv2_usage_plan_key" "api_key" {
+  key_id        = aws_apigatewayv2_api_key.api_key.id
+  key_type      = "API_KEY"
+  usage_plan_id = aws_apigatewayv2_usage_plan.api.id
 }
 
 resource "aws_apigatewayv2_stage" "default" {
