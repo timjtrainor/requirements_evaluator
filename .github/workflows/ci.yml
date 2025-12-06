@@ -1,0 +1,96 @@
+name: Python CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install black flake8 bandit mypy pylint pytest pytest-cov
+
+    - name: Lint with flake8
+      run: |
+        cd backend
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+
+    - name: Check code formatting with black
+      run: |
+        cd backend
+        black --check --diff .
+
+    - name: Security check with bandit
+      run: |
+        cd backend
+        bandit -r . -f json -o bandit-report.json || true
+        bandit -r . --exit-zero
+
+    - name: Type checking with mypy
+      run: |
+        cd backend
+        mypy --ignore-missing-imports --check-untyped-defs . || true
+
+    - name: Run unit tests
+      run: |
+        cd backend
+        python -m unittest discover -s . -p 'test_*.py' -v
+
+    - name: Run tests with coverage
+      run: |
+        cd backend
+        pytest --cov=. --cov-report=xml --cov-report=term test_*.py || true
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./backend/coverage.xml
+        fail_ci_if_error: false
+      continue-on-error: true
+
+  terraform-validate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.5.0"
+
+    - name: Terraform Format Check
+      run: |
+        cd infra
+        terraform fmt -check -recursive
+
+    - name: Terraform Init
+      run: |
+        cd infra
+        terraform init -backend=false
+
+    - name: Terraform Validate
+      run: |
+        cd infra
+        terraform validate
