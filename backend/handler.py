@@ -313,8 +313,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     
     logger.info(
         "Received request",
-        request_id=request_id,
-        event_keys=list(event.keys())
+        request_id=request_id
     )
     
     # Handle both API Gateway v1 (REST API) and v2 (HTTP API) event formats

@@ -89,44 +89,6 @@ output "api_log_group" {
   value       = aws_cloudwatch_log_group.api_logs.name
 }
 
-# CloudWatch Alarms
-output "lambda_error_alarm" {
-  description = "CloudWatch alarm for Lambda errors"
-  value       = aws_cloudwatch_metric_alarm.lambda_errors.alarm_name
-}
-
-output "lambda_duration_alarm" {
-  description = "CloudWatch alarm for Lambda duration"
-  value       = aws_cloudwatch_metric_alarm.lambda_duration.alarm_name
-}
-
-output "api_5xx_error_alarm" {
-  description = "CloudWatch alarm for API Gateway 5XX errors"
-  value       = aws_cloudwatch_metric_alarm.api_5xx_errors.alarm_name
-}
-
-output "high_request_rate_alarm" {
-  description = "CloudWatch alarm for high request rate"
-  value       = aws_cloudwatch_metric_alarm.high_request_rate.alarm_name
-}
-
-# API Authentication
-output "api_key_id" {
-  description = "API Gateway API key ID"
-  value       = aws_apigatewayv2_api_key.api_key.id
-}
-
-output "api_key_value" {
-  description = "API Gateway API key value (store securely)"
-  value       = aws_apigatewayv2_api_key.api_key.value
-  sensitive   = true
-}
-
-output "usage_plan_id" {
-  description = "API Gateway usage plan ID"
-  value       = aws_apigatewayv2_usage_plan.api.id
-}
-
 # Deployment Information
 output "deployment_summary" {
   description = "Summary of deployed resources and configuration"

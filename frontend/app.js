@@ -27,10 +27,7 @@
  */
 const CONFIG = {
     API_BASE_URL: '', // Empty for CloudFront deployment (routes via path_pattern)
-    EVALUATE_ENDPOINT: '/evaluate',
-    // Set your API key here after deployment
-    // You can get this from Terraform output: terraform output api_key_value
-    API_KEY: '' // Leave empty for development, set for production
+    EVALUATE_ENDPOINT: '/evaluate'
 };
 
 // =============================================================================
@@ -80,18 +77,11 @@ function getApiUrl() {
  * @returns {Promise<Object>} - The evaluation results
  */
 async function evaluateRequirement(requirementText) {
-    const headers = {
-        'Content-Type': 'application/json'
-    };
-
-    // Add API key if configured
-    if (CONFIG.API_KEY) {
-        headers['x-api-key'] = CONFIG.API_KEY;
-    }
-
     const response = await fetch(getApiUrl(), {
         method: 'POST',
-        headers: headers,
+        headers: {
+            'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ requirementText })
     });
 

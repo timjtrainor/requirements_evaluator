@@ -142,6 +142,7 @@ class TestHandler(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.mock_context = MagicMock()
+        self.mock_context.aws_request_id = "test-request-id"
         self.mock_context.request_id = "test-request-id"
     
     def test_options_request(self):

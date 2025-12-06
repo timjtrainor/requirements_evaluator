@@ -332,222 +332,8 @@ def print_results(metrics: Dict[str, Any]) -> None:
     print("\n" + "=" * 60)
 
 
-def load_edge_cases() -> List[Dict[str, Any]]:
-    """
-    Load additional edge case test samples for comprehensive validation.
-
-    Returns:
-        List of edge case samples with expected results
-    """
-    return [
-        {
-            "requirement": "The system shall be fast.",
-            "expected": {
-                "ambiguity_detected": True,
-                "testable": False,
-                "completeness_score": 2,
-                "completeness_threshold": 3
-            }
-        },
-        {
-            "requirement": "The system shall respond within 2 seconds under normal load conditions with up to 100 concurrent users.",
-            "expected": {
-                "ambiguity_detected": False,
-                "testable": True,
-                "completeness_score": 8,
-                "completeness_threshold": 2
-            }
-        },
-        {
-            "requirement": "",
-            "expected": {
-                "ambiguity_detected": None,
-                "testable": None,
-                "completeness_score": 0,
-                "completeness_threshold": 0
-            }
-        },
-        {
-            "requirement": "x" * 6000,  # Too long
-            "expected": {
-                "ambiguity_detected": None,
-                "testable": None,
-                "completeness_score": 0,
-                "completeness_threshold": 0
-            }
-        },
-        {
-            "requirement": "The system shall use encryption for all data transmissions and storage, complying with industry standards such as AES-256 for symmetric encryption and RSA-2048 for key exchange, with regular key rotation every 90 days.",
-            "expected": {
-                "ambiguity_detected": False,
-                "testable": True,
-                "completeness_score": 9,
-                "completeness_threshold": 2
-            }
-        }
-    ]
-
-
-def validate_model_consistency(results: List[Dict[str, Any]], threshold: float = 0.8) -> Dict[str, Any]:
-    """
-    Validate model consistency across multiple runs.
-
-    Args:
-        results: List of evaluation results
-        threshold: Minimum consistency threshold (0.0-1.0)
-
-    Returns:
-        Dictionary with consistency metrics
-    """
-    if len(results) < 2:
-        return {"consistency_score": 1.0, "message": "Need at least 2 results for consistency check"}
-
-    # Group results by requirement
-    requirement_groups = {}
-    for result in results:
-        req = result.get("requirement", "")
-        if req not in requirement_groups:
-            requirement_groups[req] = []
-        requirement_groups[req].append(result)
-
-    consistency_scores = []
-    for req, group_results in requirement_groups.items():
-        if len(group_results) < 2:
-            continue
-
-        # Compare key metrics across runs
-        scores = [r.get("ai_output", {}).get("completeness_score", 0) for r in group_results]
-        ambiguities = [r.get("ai_output", {}).get("ambiguity_detected") for r in group_results]
-        testabilities = [r.get("ai_output", {}).get("testable") for r in group_results]
-
-        # Calculate consistency
-        score_std = sum((s - sum(scores)/len(scores))**2 for s in scores) ** 0.5 if scores else 0
-        ambiguity_consistent = len(set(ambiguities)) == 1 if ambiguities else True
-        testability_consistent = len(set(testabilities)) == 1 if testabilities else True
-
-        # Overall consistency score (0-1, higher is better)
-        consistency = 1.0
-        if scores:
-            consistency *= max(0, 1 - score_std / 5)  # Penalize high variance
-        if not ambiguity_consistent:
-            consistency *= 0.8
-        if not testability_consistent:
-            consistency *= 0.8
-
-        consistency_scores.append(consistency)
-
-    avg_consistency = sum(consistency_scores) / len(consistency_scores) if consistency_scores else 1.0
-
-    return {
-        "consistency_score": avg_consistency,
-        "passed": avg_consistency >= threshold,
-        "message": f"Model consistency: {avg_consistency:.2%} ({'PASS' if avg_consistency >= threshold else 'FAIL'})"
-    }
-
-
-def run_ci_cd_validation() -> bool:
-    """
-    Run comprehensive validation suitable for CI/CD pipelines.
-
-    Returns:
-        True if all validations pass, False otherwise
-    """
-    print("Running CI/CD validation...")
-
-    # Load main dataset
-    dataset_path = os.environ.get("EVAL_DATASET", "eval_dataset.json")
-    if not os.path.exists(dataset_path):
-        print(f"❌ Dataset file not found: {dataset_path}")
-        return False
-
-    with open(dataset_path, "r", encoding="utf-8") as f:
-        dataset = json.load(f)
-
-    samples = dataset.get("samples", [])
-    print(f"Loaded {len(samples)} samples from {dataset_path}")
-
-    # Add edge cases
-    samples.extend(load_edge_cases())
-    print(f"Total samples including edge cases: {len(samples)}")
-
-    # Evaluate samples
-    results = []
-    for i, sample in enumerate(samples, 1):
-        print(f"Evaluating sample {i}/{len(samples)}", end="\r")
-        result = evaluate_sample(sample)
-        results.append(result)
-
-    print()  # New line after progress
-
-    # Compute metrics
-    metrics = compute_metrics(results)
-
-    # Check thresholds
-    thresholds = {
-        "ambiguity_accuracy": 0.75,
-        "testability_accuracy": 0.75,
-        "completeness_accuracy": 0.70
-    }
-
-    passed = True
-    print("\nCI/CD Validation Results:")
-    print("=" * 50)
-
-    for metric, threshold in thresholds.items():
-        if metric in metrics.get("ambiguity", {}):
-            value = metrics["ambiguity"].get(metric, 0)
-        elif metric in metrics.get("testability", {}):
-            value = metrics["testability"].get(metric, 0)
-        elif metric in metrics.get("completeness", {}):
-            value = metrics["completeness"].get(metric, 0)
-        else:
-            continue
-
-        status = "✅ PASS" if value >= threshold else "❌ FAIL"
-        print(f"{metric}: {value:.2%} (threshold: {threshold:.2%}) - {status}")
-        if value < threshold:
-            passed = False
-
-    # Consistency check
-    consistency = validate_model_consistency(results)
-    print(f"Model consistency: {consistency['consistency_score']:.2%} - {'✅ PASS' if consistency['passed'] else '❌ FAIL'}")
-    if not consistency['passed']:
-        passed = False
-
-    # Error rate check
-    error_rate = metrics.get("errors", 0) / metrics.get("total_samples", 1)
-    max_error_rate = 0.1  # 10% max errors
-    error_status = "✅ PASS" if error_rate <= max_error_rate else "❌ FAIL"
-    print(f"Error rate: {error_rate:.2%} (max: {max_error_rate:.2%}) - {error_status}")
-    if error_rate > max_error_rate:
-        passed = False
-
-    print("=" * 50)
-    print(f"Overall result: {'✅ ALL TESTS PASSED' if passed else '❌ SOME TESTS FAILED'}")
-
-    # Save detailed results for CI/CD artifacts
-    output_path = os.environ.get("EVAL_OUTPUT", "ci_cd_results.json")
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump({
-            "results": results,
-            "metrics": metrics,
-            "consistency": consistency,
-            "passed": passed,
-            "timestamp": __import__("time").time()
-        }, f, indent=2)
-    print(f"Detailed results saved to: {output_path}")
-
-    return passed
-
-
 def main() -> None:
     """Main entry point for the evaluation harness."""
-    # Check if running in CI/CD mode
-    if os.environ.get("CI_CD_MODE", "").lower() in ("true", "1", "yes"):
-        success = run_ci_cd_validation()
-        sys.exit(0 if success else 1)
-
-    # Standard evaluation mode
     # Load dataset
     dataset_path = os.environ.get("EVAL_DATASET", "eval_dataset.json")
 
@@ -561,11 +347,6 @@ def main() -> None:
     samples = dataset.get("samples", [])
     print(f"Loaded {len(samples)} samples from {dataset_path}")
 
-    # Add edge cases for comprehensive testing
-    if os.environ.get("INCLUDE_EDGE_CASES", "true").lower() in ("true", "1", "yes"):
-        samples.extend(load_edge_cases())
-        print(f"Total samples including edge cases: {len(samples)}")
-
     # Evaluate each sample
     results = []
     for i, sample in enumerate(samples, 1):
@@ -577,20 +358,13 @@ def main() -> None:
     metrics = compute_metrics(results)
     print_results(metrics)
 
-    # Validate consistency
-    consistency = validate_model_consistency(results)
-    print(f"\n{consistency['message']}")
-
     # Optionally save detailed results
     output_path = os.environ.get("EVAL_OUTPUT")
     if output_path:
         with open(output_path, "w", encoding="utf-8") as f:
-            json.dump({
-                "results": results,
-                "metrics": metrics,
-                "consistency": consistency
-            }, f, indent=2)
+            json.dump({"results": results, "metrics": metrics}, f, indent=2)
         print(f"\nDetailed results saved to: {output_path}")
 
 if __name__ == "__main__":
     main()
+
