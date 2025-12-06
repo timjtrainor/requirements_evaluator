@@ -12,14 +12,10 @@ from typing import Any
 
 import boto3
 
-# Bedrock configuration
-BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-east-1")
-BEDROCK_MODEL_ID = os.environ.get(
-    "BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"
-)
+from config import Config, validate_response_schema
 
-# Initialize Bedrock client
-bedrock_client = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
+# Initialize Bedrock client using configuration
+bedrock_client = boto3.client("bedrock-runtime", region_name=Config.get_bedrock_region())
 
 
 def build_evaluation_prompt(requirement_text: str) -> str:
@@ -66,7 +62,7 @@ def call_bedrock(requirement_text: str) -> dict:
     }
 
     response = bedrock_client.invoke_model(
-        modelId=BEDROCK_MODEL_ID,
+        modelId=Config.get_model_id(),
         contentType="application/json",
         accept="application/json",
         body=json.dumps(request_body)
@@ -76,7 +72,14 @@ def call_bedrock(requirement_text: str) -> dict:
     content = response_body.get("content", [{}])[0].get("text", "")
 
     try:
-        return json.loads(content)
+        evaluation = json.loads(content)
+        
+        # Validate the response schema
+        is_valid, error_msg = validate_response_schema(evaluation)
+        if not is_valid:
+            print(f"Warning: Schema validation failed: {error_msg}")
+        
+        return evaluation
     except json.JSONDecodeError:
         return None
 

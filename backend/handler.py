@@ -8,25 +8,21 @@ and returns structured evaluation results.
 
 import json
 import logging
-import os
 from textwrap import dedent
 from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError
 
+from config import Config, validate_response_schema
 from rate_limit import check_and_increment_quota
 
 # Configure logging
 logger = logging.getLogger()
-logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+logger.setLevel(Config.get_log_level())
 
-# Bedrock configuration from environment variables
-BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-east-1")
-BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
-
-# Initialize Bedrock client
-bedrock_client = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
+# Initialize Bedrock client using configuration
+bedrock_client = boto3.client("bedrock-runtime", region_name=Config.get_bedrock_region())
 
 # CORS headers for API Gateway responses
 CORS_HEADERS = {
@@ -153,10 +149,10 @@ def call_bedrock(requirement_text: str) -> dict:
         "temperature": 0.2  # Low temperature for consistent evaluations
     }
     
-    logger.info(f"Calling Bedrock model: {BEDROCK_MODEL_ID}")
+    logger.info(f"Calling Bedrock model: {Config.get_model_id()}")
     
     response = bedrock_client.invoke_model(
-        modelId=BEDROCK_MODEL_ID,
+        modelId=Config.get_model_id(),
         contentType="application/json",
         accept="application/json",
         body=json.dumps(request_body)
@@ -172,6 +168,14 @@ def call_bedrock(requirement_text: str) -> dict:
     try:
         # Try to extract JSON from the response
         evaluation = json.loads(content)
+        
+        # Validate the response schema
+        is_valid, error_msg = validate_response_schema(evaluation)
+        if not is_valid:
+            logger.warning(f"Schema validation failed: {error_msg}")
+            # Continue with the response even if schema validation fails,
+            # but log the issue for monitoring
+        
         return evaluation
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse Bedrock response as JSON: {e}")
