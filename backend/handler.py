@@ -130,38 +130,63 @@ def call_bedrock(requirement_text: str) -> dict:
         Exception: If Bedrock call fails or response cannot be parsed
     """
     prompt = build_evaluation_prompt(requirement_text)
-    
-    # Prepare request body for Claude 3 Haiku
-    request_body = {
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1024,
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": prompt
-                    }
-                ]
-            }
-        ],
-        "temperature": 0.2  # Low temperature for consistent evaluations
-    }
-    
-    logger.info(f"Calling Bedrock model: {Config.get_model_id()}")
-    
+
+    model_id = Config.get_model_id()
+
+    # Prepare request body depending on the selected model family
+    if model_id.startswith("openai."):
+        request_body = {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.2,
+            "max_tokens": 1024,
+        }
+    else:
+        # Default to Anthropic format
+        request_body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 1024,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        }
+                    ]
+                }
+            ],
+            "temperature": 0.2  # Low temperature for consistent evaluations
+        }
+
+    logger.info(f"Calling Bedrock model: {model_id}")
+
     response = bedrock_client.invoke_model(
-        modelId=Config.get_model_id(),
+        modelId=model_id,
         contentType="application/json",
         accept="application/json",
         body=json.dumps(request_body)
     )
-    
+
     # Parse response
     response_body = json.loads(response["body"].read())
-    content = response_body.get("content", [{}])[0].get("text", "")
-    
+
+    if model_id.startswith("openai."):
+        # OpenAI models return choices[0].message.content (string or list)
+        first_choice = response_body.get("choices", [{}])[0]
+        message = first_choice.get("message", {})
+        content = message.get("content", "")
+        if isinstance(content, list):
+            # concatenate text entries if provided as a list of content blocks
+            content = "".join(block.get("text", "") for block in content if isinstance(block, dict))
+    else:
+        content = response_body.get("content", [{}])[0].get("text", "")
+
     logger.debug(f"Bedrock response content: {content}")
     
     # Parse the JSON from the response
