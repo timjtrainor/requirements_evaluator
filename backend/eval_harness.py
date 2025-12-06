@@ -8,7 +8,7 @@ import json
 import os
 import sys
 from textwrap import dedent
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import boto3
 
@@ -55,7 +55,7 @@ def build_evaluation_prompt(requirement_text: str) -> str:
     ).strip()
 
 
-def call_bedrock(requirement_text: str) -> dict:
+def call_bedrock(requirement_text: str) -> Optional[Dict[str, Any]]:
     """Call Amazon Bedrock to evaluate the requirement."""
     prompt = build_evaluation_prompt(requirement_text)
 
@@ -121,7 +121,7 @@ def call_bedrock(requirement_text: str) -> dict:
         return None
 
 
-def evaluate_sample(sample: dict) -> dict:
+def evaluate_sample(sample: Dict[str, Any]) -> Dict[str, Any]:
     """
     Evaluate a single sample and compare to expected results.
 
@@ -198,7 +198,7 @@ def evaluate_sample(sample: dict) -> dict:
         }
 
 
-def compute_metrics(results: list[dict]) -> dict:
+def compute_metrics(results: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Compute accuracy metrics from evaluation results.
 
@@ -290,7 +290,7 @@ def compute_metrics(results: list[dict]) -> dict:
     return metrics
 
 
-def print_results(metrics: dict) -> None:
+def print_results(metrics: Dict[str, Any]) -> None:
     """Print formatted evaluation results."""
     print("\n" + "=" * 60)
     print("EVALUATION RESULTS")

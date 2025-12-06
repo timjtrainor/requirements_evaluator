@@ -7,9 +7,10 @@ Stores date + count in DynamoDB and provides quota checking.
 
 import json
 import logging
+import os
 import time
 from datetime import datetime, timezone
-from typing import Tuple
+from typing import Any, Dict, Tuple
 
 import boto3
 from botocore.exceptions import ClientError
@@ -23,12 +24,12 @@ config = get_config()
 class StructuredLogger:
     """Structured JSON logger for better observability."""
     
-    def __init__(self, logger: logging.Logger):
+    def __init__(self, logger: logging.Logger) -> None:
         self.logger = logger
     
-    def _log(self, level: str, message: str, **kwargs):
+    def _log(self, level: str, message: str, **kwargs: Any) -> None:
         """Log a structured JSON message."""
-        log_data = {
+        log_data: Dict[str, Any] = {
             "timestamp": time.time(),
             "level": level,
             "message": message,
@@ -39,19 +40,19 @@ class StructuredLogger:
             json.dumps(log_data)
         )
     
-    def debug(self, message: str, **kwargs):
+    def debug(self, message: str, **kwargs: Any) -> None:
         """Log debug message."""
         self._log("DEBUG", message, **kwargs)
     
-    def info(self, message: str, **kwargs):
+    def info(self, message: str, **kwargs: Any) -> None:
         """Log info message."""
         self._log("INFO", message, **kwargs)
     
-    def warning(self, message: str, **kwargs):
+    def warning(self, message: str, **kwargs: Any) -> None:
         """Log warning message."""
         self._log("WARNING", message, **kwargs)
     
-    def error(self, message: str, **kwargs):
+    def error(self, message: str, **kwargs: Any) -> None:
         """Log error message."""
         self._log("ERROR", message, **kwargs)
 
@@ -187,7 +188,7 @@ def reset_counter_for_new_day(client_ip: str, today: str) -> Tuple[bool, str]:
         return True, ""
 
 
-def get_current_usage(client_ip: str) -> dict:
+def get_current_usage(client_ip: str) -> Dict[str, Any]:
     """
     Get the current usage statistics for a client IP.
     

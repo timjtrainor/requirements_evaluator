@@ -10,7 +10,7 @@ Uses Pydantic for configuration validation with fail-fast behavior.
 
 import os
 import sys
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
@@ -193,11 +193,11 @@ class EvaluationResponse(BaseModel):
     completeness_details: str = Field(
         description="Explanation of what information may be missing"
     )
-    issues: list[str] = Field(
+    issues: List[str] = Field(
         default_factory=list,
         description="List of specific issues found"
     )
-    suggestions: list[str] = Field(
+    suggestions: List[str] = Field(
         default_factory=list,
         description="List of improvement suggestions"
     )
@@ -234,7 +234,7 @@ def get_config() -> Config:
     return _config_instance
 
 
-def validate_response_schema(response: dict) -> tuple[bool, Optional[str]]:
+def validate_response_schema(response: dict) -> Tuple[bool, Optional[str]]:
     """
     Validate that a Bedrock response matches the expected schema using Pydantic.
     

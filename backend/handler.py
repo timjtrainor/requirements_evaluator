@@ -10,7 +10,7 @@ import json
 import logging
 import time
 from textwrap import dedent
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 import boto3
 from botocore.exceptions import ClientError
@@ -25,12 +25,12 @@ config = get_config()
 class StructuredLogger:
     """Structured JSON logger for better observability."""
     
-    def __init__(self, logger: logging.Logger):
+    def __init__(self, logger: logging.Logger) -> None:
         self.logger = logger
     
-    def _log(self, level: str, message: str, **kwargs):
+    def _log(self, level: str, message: str, **kwargs: Any) -> None:
         """Log a structured JSON message."""
-        log_data = {
+        log_data: Dict[str, Any] = {
             "timestamp": time.time(),
             "level": level,
             "message": message,
@@ -41,23 +41,23 @@ class StructuredLogger:
             json.dumps(log_data)
         )
     
-    def debug(self, message: str, **kwargs):
+    def debug(self, message: str, **kwargs: Any) -> None:
         """Log debug message."""
         self._log("DEBUG", message, **kwargs)
     
-    def info(self, message: str, **kwargs):
+    def info(self, message: str, **kwargs: Any) -> None:
         """Log info message."""
         self._log("INFO", message, **kwargs)
     
-    def warning(self, message: str, **kwargs):
+    def warning(self, message: str, **kwargs: Any) -> None:
         """Log warning message."""
         self._log("WARNING", message, **kwargs)
     
-    def error(self, message: str, **kwargs):
+    def error(self, message: str, **kwargs: Any) -> None:
         """Log error message."""
         self._log("ERROR", message, **kwargs)
     
-    def critical(self, message: str, **kwargs):
+    def critical(self, message: str, **kwargs: Any) -> None:
         """Log critical message."""
         self._log("CRITICAL", message, **kwargs)
 
@@ -86,7 +86,7 @@ CORS_HEADERS = {
 }
 
 
-def create_response(status_code: int, body: dict) -> dict:
+def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
     """Create a properly formatted API Gateway response."""
     return {
         "statusCode": status_code,
@@ -95,7 +95,7 @@ def create_response(status_code: int, body: dict) -> dict:
     }
 
 
-def validate_request(body: dict) -> tuple[bool, str]:
+def validate_request(body: Dict[str, Any]) -> Tuple[bool, str]:
     """
     Validate the incoming request body.
     
@@ -169,7 +169,7 @@ def build_evaluation_prompt(requirement_text: str) -> str:
     ).strip()
 
 
-def call_bedrock(requirement_text: str) -> dict:
+def call_bedrock(requirement_text: str) -> Dict[str, Any]:
     """
     Call Amazon Bedrock to evaluate the requirement.
     
@@ -312,7 +312,7 @@ def call_bedrock(requirement_text: str) -> dict:
         raise
 
 
-def get_client_ip(event: dict) -> str:
+def get_client_ip(event: Dict[str, Any]) -> str:
     """Extract client IP from the API Gateway event."""
     # Try requestContext first (API Gateway v1)
     request_context = event.get("requestContext", {})
@@ -333,7 +333,7 @@ def get_client_ip(event: dict) -> str:
     return "unknown"
 
 
-def handler(event: dict, context: Any) -> dict:
+def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Main Lambda handler function.
     
