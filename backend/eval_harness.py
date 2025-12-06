@@ -12,10 +12,20 @@ from typing import Any
 
 import boto3
 
-from config import Config, validate_response_schema
+from config import get_config, validate_response_schema
+
+# Get configuration singleton
+config = get_config()
 
 # Initialize Bedrock client using configuration
-bedrock_client = boto3.client("bedrock-runtime", region_name=Config.get_bedrock_region())
+bedrock_client = boto3.client(
+    "bedrock-runtime",
+    region_name=config.bedrock_region,
+    config=boto3.session.Config(
+        connect_timeout=config.bedrock_timeout,
+        read_timeout=config.bedrock_timeout,
+    )
+)
 
 
 def build_evaluation_prompt(requirement_text: str) -> str:
@@ -49,7 +59,7 @@ def call_bedrock(requirement_text: str) -> dict:
     """Call Amazon Bedrock to evaluate the requirement."""
     prompt = build_evaluation_prompt(requirement_text)
 
-    model_id = Config.get_model_id()
+    model_id = config.bedrock_model_id
 
     if model_id.startswith("openai."):
         request_body = {
@@ -59,13 +69,13 @@ def call_bedrock(requirement_text: str) -> dict:
                     "content": prompt
                 }
             ],
-            "temperature": 0.2,
-            "max_tokens": 1024,
+            "temperature": config.model_temperature,
+            "max_tokens": config.model_max_tokens,
         }
     else:
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1024,
+            "max_tokens": config.model_max_tokens,
             "messages": [
                 {
                     "role": "user",
@@ -77,7 +87,7 @@ def call_bedrock(requirement_text: str) -> dict:
                     ],
                 }
             ],
-            "temperature": 0.2
+            "temperature": config.model_temperature
         }
 
     response = bedrock_client.invoke_model(

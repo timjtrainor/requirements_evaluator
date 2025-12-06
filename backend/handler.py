@@ -8,21 +8,74 @@ and returns structured evaluation results.
 
 import json
 import logging
+import time
 from textwrap import dedent
-from typing import Any
+from typing import Any, Dict
 
 import boto3
 from botocore.exceptions import ClientError
 
-from config import Config, validate_response_schema
+from config import get_config, validate_response_schema
 from rate_limit import check_and_increment_quota
 
+# Get configuration singleton
+config = get_config()
+
+# Configure structured JSON logging
+class StructuredLogger:
+    """Structured JSON logger for better observability."""
+    
+    def __init__(self, logger: logging.Logger):
+        self.logger = logger
+    
+    def _log(self, level: str, message: str, **kwargs):
+        """Log a structured JSON message."""
+        log_data = {
+            "timestamp": time.time(),
+            "level": level,
+            "message": message,
+            **kwargs
+        }
+        self.logger.log(
+            getattr(logging, level),
+            json.dumps(log_data)
+        )
+    
+    def debug(self, message: str, **kwargs):
+        """Log debug message."""
+        self._log("DEBUG", message, **kwargs)
+    
+    def info(self, message: str, **kwargs):
+        """Log info message."""
+        self._log("INFO", message, **kwargs)
+    
+    def warning(self, message: str, **kwargs):
+        """Log warning message."""
+        self._log("WARNING", message, **kwargs)
+    
+    def error(self, message: str, **kwargs):
+        """Log error message."""
+        self._log("ERROR", message, **kwargs)
+    
+    def critical(self, message: str, **kwargs):
+        """Log critical message."""
+        self._log("CRITICAL", message, **kwargs)
+
+
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(Config.get_log_level())
+base_logger = logging.getLogger()
+base_logger.setLevel(config.log_level)
+logger = StructuredLogger(base_logger)
 
 # Initialize Bedrock client using configuration
-bedrock_client = boto3.client("bedrock-runtime", region_name=Config.get_bedrock_region())
+bedrock_client = boto3.client(
+    "bedrock-runtime",
+    region_name=config.bedrock_region,
+    config=boto3.session.Config(
+        connect_timeout=config.bedrock_timeout,
+        read_timeout=config.bedrock_timeout,
+    )
+)
 
 # CORS headers for API Gateway responses
 CORS_HEADERS = {
@@ -66,11 +119,11 @@ def validate_request(body: dict) -> tuple[bool, str]:
     if len(requirement_text.strip()) == 0:
         return False, "requirementText cannot be empty"
     
-    if len(requirement_text.strip()) < 10:
-        return False, "requirementText must be at least 10 characters"
+    if len(requirement_text.strip()) < config.min_requirement_length:
+        return False, f"requirementText must be at least {config.min_requirement_length} characters"
     
-    if len(requirement_text) > 5000:
-        return False, "requirementText exceeds maximum length of 5000 characters"
+    if len(requirement_text) > config.max_requirement_length:
+        return False, f"requirementText exceeds maximum length of {config.max_requirement_length} characters"
     
     return True, ""
 
@@ -129,9 +182,10 @@ def call_bedrock(requirement_text: str) -> dict:
     Raises:
         Exception: If Bedrock call fails or response cannot be parsed
     """
+    start_time = time.time()
     prompt = build_evaluation_prompt(requirement_text)
 
-    model_id = Config.get_model_id()
+    model_id = config.bedrock_model_id
 
     # Prepare request body depending on the selected model family
     if model_id.startswith("openai."):
@@ -142,14 +196,14 @@ def call_bedrock(requirement_text: str) -> dict:
                     "content": prompt
                 }
             ],
-            "temperature": 0.2,
-            "max_tokens": 1024,
+            "temperature": config.model_temperature,
+            "max_tokens": config.model_max_tokens,
         }
     else:
         # Default to Anthropic format
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1024,
+            "max_tokens": config.model_max_tokens,
             "messages": [
                 {
                     "role": "user",
@@ -161,60 +215,101 @@ def call_bedrock(requirement_text: str) -> dict:
                     ]
                 }
             ],
-            "temperature": 0.2  # Low temperature for consistent evaluations
+            "temperature": config.model_temperature
         }
 
-    logger.info(f"Calling Bedrock model: {model_id}")
-
-    response = bedrock_client.invoke_model(
-        modelId=model_id,
-        contentType="application/json",
-        accept="application/json",
-        body=json.dumps(request_body)
+    logger.info(
+        "Calling Bedrock model",
+        model_id=model_id,
+        temperature=config.model_temperature,
+        max_tokens=config.model_max_tokens
     )
 
-    # Parse response
-    response_body = json.loads(response["body"].read())
-
-    if model_id.startswith("openai."):
-        # OpenAI models return choices[0].message.content (string or list)
-        first_choice = response_body.get("choices", [{}])[0]
-        message = first_choice.get("message", {})
-        content = message.get("content", "")
-        if isinstance(content, list):
-            # concatenate text entries if provided as a list of content blocks
-            content = "".join(block.get("text", "") for block in content if isinstance(block, dict))
-    else:
-        content = response_body.get("content", [{}])[0].get("text", "")
-
-    logger.debug(f"Bedrock response content: {content}")
-    
-    # Parse the JSON from the response
     try:
-        # Try to extract JSON from the response
-        evaluation = json.loads(content)
+        response = bedrock_client.invoke_model(
+            modelId=model_id,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps(request_body)
+        )
         
-        # Validate the response schema
-        is_valid, error_msg = validate_response_schema(evaluation)
-        if not is_valid:
-            logger.warning(f"Schema validation failed: {error_msg}")
-            # Continue with the response even if schema validation fails,
-            # but log the issue for monitoring
+        duration = time.time() - start_time
+        logger.info(
+            "Bedrock call completed",
+            model_id=model_id,
+            duration_seconds=round(duration, 2)
+        )
+
+        # Parse response
+        response_body = json.loads(response["body"].read())
+
+        if model_id.startswith("openai."):
+            # OpenAI models return choices[0].message.content (string or list)
+            first_choice = response_body.get("choices", [{}])[0]
+            message = first_choice.get("message", {})
+            content = message.get("content", "")
+            if isinstance(content, list):
+                # concatenate text entries if provided as a list of content blocks
+                content = "".join(block.get("text", "") for block in content if isinstance(block, dict))
+        else:
+            content = response_body.get("content", [{}])[0].get("text", "")
+
+        logger.debug("Bedrock response received", content_length=len(content))
         
-        return evaluation
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse Bedrock response as JSON: {e}")
-        # Return a default structure if parsing fails
-        return {
-            "ambiguity_detected": None,
-            "ambiguity_details": "Failed to parse evaluation",
-            "testable": None,
-            "testability_details": "Failed to parse evaluation",
-            "completeness_score": 0,
-            "completeness_details": "Failed to parse evaluation",
-            "issues": ["Evaluation parsing error"],
-            "suggestions": ["Please try again"]
-        }
+        # Parse the JSON from the response
+        try:
+            # Try to extract JSON from the response
+            evaluation = json.loads(content)
+            
+            # Validate the response schema
+            is_valid, error_msg = validate_response_schema(evaluation)
+            if not is_valid:
+                logger.warning(
+                    "Schema validation failed",
+                    model_id=model_id,
+                    error=error_msg
+                )
+                # Continue with the response even if schema validation fails,
+                # but log the issue for monitoring
+            
+            return evaluation
+        except json.JSONDecodeError as e:
+            logger.error(
+                "Failed to parse Bedrock response",
+                model_id=model_id,
+                error=str(e),
+                content_preview=content[:200] if content else ""
+            )
+            # Return a default structure if parsing fails
+            return {
+                "ambiguity_detected": None,
+                "ambiguity_details": "Failed to parse evaluation",
+                "testable": None,
+                "testability_details": "Failed to parse evaluation",
+                "completeness_score": 0,
+                "completeness_details": "Failed to parse evaluation",
+                "issues": ["Evaluation parsing error"],
+                "suggestions": ["Please try again"]
+            }
+    except ClientError as e:
+        duration = time.time() - start_time
+        logger.error(
+            "Bedrock API error",
+            model_id=model_id,
+            duration_seconds=round(duration, 2),
+            error_code=e.response.get("Error", {}).get("Code", "Unknown"),
+            error_message=str(e)
+        )
+        raise
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.error(
+            "Unexpected error calling Bedrock",
+            model_id=model_id,
+            duration_seconds=round(duration, 2),
+            error=str(e)
+        )
+        raise
 
 
 def get_client_ip(event: dict) -> str:
@@ -249,7 +344,14 @@ def handler(event: dict, context: Any) -> dict:
     Returns:
         API Gateway response
     """
-    logger.info(f"Received event: {json.dumps(event)}")
+    request_id = context.request_id if context else "unknown"
+    start_time = time.time()
+    
+    logger.info(
+        "Received request",
+        request_id=request_id,
+        event_keys=list(event.keys())
+    )
     
     # Handle both API Gateway v1 (REST API) and v2 (HTTP API) event formats
     http_method = event.get("httpMethod") or event.get("requestContext", {}).get("http", {}).get("method", "")
@@ -260,23 +362,30 @@ def handler(event: dict, context: Any) -> dict:
     
     # Only accept POST requests
     if http_method != "POST":
+        logger.warning("Method not allowed", method=http_method, request_id=request_id)
         return create_response(405, {"error": "Method not allowed"})
     
     try:
         # Parse request body
         body_str = event.get("body", "")
         if not body_str:
+            logger.warning("Empty request body", request_id=request_id)
             return create_response(400, {"error": "Request body is required"})
         
         try:
             body = json.loads(body_str)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            logger.warning("Invalid JSON in request", request_id=request_id, error=str(e))
             return create_response(400, {"error": "Invalid JSON in request body"})
         
         # Validate request
         is_valid, error_msg = validate_request(body)
         if not is_valid:
-            logger.warning(f"Validation failed: {error_msg}")
+            logger.warning(
+                "Request validation failed",
+                request_id=request_id,
+                error=error_msg
+            )
             return create_response(400, {"error": error_msg})
         
         # Check rate limit
@@ -284,23 +393,52 @@ def handler(event: dict, context: Any) -> dict:
         allowed, rate_error = check_and_increment_quota(client_ip)
         
         if not allowed:
-            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            logger.warning(
+                "Rate limit exceeded",
+                request_id=request_id,
+                client_ip=client_ip
+            )
             return create_response(429, {"error": rate_error})
         
         # Call Bedrock for evaluation
         requirement_text = body["requirementText"].strip()
-        logger.info(f"Evaluating requirement: {requirement_text[:100]}...")
+        logger.info(
+            "Evaluating requirement",
+            request_id=request_id,
+            client_ip=client_ip,
+            requirement_length=len(requirement_text)
+        )
         
         evaluation = call_bedrock(requirement_text)
         
-        logger.info("Evaluation completed successfully")
+        duration = time.time() - start_time
+        logger.info(
+            "Request completed successfully",
+            request_id=request_id,
+            total_duration_seconds=round(duration, 2)
+        )
         return create_response(200, evaluation)
         
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
-        logger.error(f"AWS ClientError: {error_code} - {str(e)}")
+        duration = time.time() - start_time
+        logger.error(
+            "AWS service error",
+            request_id=request_id,
+            error_code=error_code,
+            error_message=str(e),
+            duration_seconds=round(duration, 2)
+        )
         return create_response(500, {"error": f"AWS service error: {error_code}"})
         
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        duration = time.time() - start_time
+        logger.error(
+            "Unexpected error",
+            request_id=request_id,
+            error=str(e),
+            error_type=type(e).__name__,
+            duration_seconds=round(duration, 2),
+            exc_info=True
+        )
         return create_response(500, {"error": "Internal server error"})
