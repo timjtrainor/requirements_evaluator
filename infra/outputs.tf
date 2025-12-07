@@ -92,7 +92,7 @@ output "api_log_group" {
 # Deployment Information
 output "deployment_summary" {
   description = "Summary of deployed resources and configuration"
-  value = {
+  value       = {
     frontend_url          = "https://${aws_cloudfront_distribution.frontend.domain_name}"
     api_endpoint          = "${aws_apigatewayv2_api.api.api_endpoint}/evaluate"
     region                = var.aws_region
