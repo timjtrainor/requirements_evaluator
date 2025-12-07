@@ -6,11 +6,11 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 5.80"  # Pin to specific minor version for stability
     }
     archive = {
       source  = "hashicorp/archive"
-      version = "~> 2.0"
+      version = "~> 2.7"
     }
   }
 }
@@ -51,7 +51,7 @@ resource "aws_dynamodb_table" "rate_limit" {
 # -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.project_name}-lambda-role-${var.environment}"
+  name               = "${var.project_name}-lambda-role-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -74,8 +74,8 @@ resource "aws_iam_role" "lambda_role" {
 
 # CloudWatch Logs policy
 resource "aws_iam_role_policy" "lambda_logs" {
-  name = "${var.project_name}-lambda-logs-${var.environment}"
-  role = aws_iam_role.lambda_role.id
+  name   = "${var.project_name}-lambda-logs-${var.environment}"
+  role   = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -95,8 +95,8 @@ resource "aws_iam_role_policy" "lambda_logs" {
 
 # DynamoDB policy for rate limiting
 resource "aws_iam_role_policy" "lambda_dynamodb" {
-  name = "${var.project_name}-lambda-dynamodb-${var.environment}"
-  role = aws_iam_role.lambda_role.id
+  name   = "${var.project_name}-lambda-dynamodb-${var.environment}"
+  role   = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -117,8 +117,8 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
 
 # Bedrock policy
 resource "aws_iam_role_policy" "lambda_bedrock" {
-  name = "${var.project_name}-lambda-bedrock-${var.environment}"
-  role = aws_iam_role.lambda_role.id
+  name   = "${var.project_name}-lambda-bedrock-${var.environment}"
+  role   = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -153,18 +153,21 @@ resource "aws_lambda_function" "evaluator" {
   handler          = "handler.handler"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   runtime          = "python3.11"
-  timeout          = 30
-  memory_size      = 256
+  timeout          = var.lambda_timeout
+  memory_size      = var.lambda_memory_size
 
   environment {
     variables = {
-      RATE_LIMIT_TABLE = aws_dynamodb_table.rate_limit.name
-      DAILY_RATE_LIMIT = var.daily_rate_limit
-      BEDROCK_REGION   = var.aws_region
-      # BEDROCK_MODEL_ID can be overridden via Terraform variable or directly here
-      # See variables.tf for supported models and trade-offs
-      BEDROCK_MODEL_ID = var.bedrock_model_id
-      LOG_LEVEL        = var.log_level
+      RATE_LIMIT_TABLE        = aws_dynamodb_table.rate_limit.name
+      DAILY_RATE_LIMIT        = var.daily_rate_limit
+      BEDROCK_REGION          = var.aws_region
+      BEDROCK_MODEL_ID        = var.bedrock_model_id
+      BEDROCK_TIMEOUT         = var.bedrock_timeout
+      LOG_LEVEL               = var.log_level
+      MODEL_TEMPERATURE       = var.model_temperature
+      MODEL_MAX_TOKENS        = var.model_max_tokens
+      MIN_REQUIREMENT_LENGTH  = var.min_requirement_length
+      MAX_REQUIREMENT_LENGTH  = var.max_requirement_length
     }
   }
 
@@ -213,7 +216,7 @@ resource "aws_apigatewayv2_stage" "default" {
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_logs.arn
-    format = jsonencode({
+    format           = jsonencode({
       requestId      = "$context.requestId"
       ip             = "$context.identity.sourceIp"
       requestTime    = "$context.requestTime"
@@ -282,30 +285,6 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_policy" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "AllowCloudFrontAccess"
-        Effect = "Allow"
-        Principal = {
-          Service = "cloudfront.amazonaws.com"
-        }
-        Action   = "s3:GetObject"
-        Resource = "${aws_s3_bucket.frontend.arn}/*"
-        Condition = {
-          StringEquals = {
-            "AWS:SourceArn" = aws_cloudfront_distribution.frontend.arn
-          }
-        }
-      }
-    ]
-  })
 }
 
 # -----------------------------------------------------------------------------
@@ -400,4 +379,32 @@ resource "aws_cloudfront_distribution" "frontend" {
     Project     = var.project_name
     Environment = var.environment
   }
+}
+
+# S3 bucket policy - defined after CloudFront distribution to avoid reference issues
+resource "aws_s3_bucket_policy" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+
+  # Ensure CloudFront distribution is created first
+  depends_on = [aws_cloudfront_distribution.frontend]
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowCloudFrontAccess"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${aws_s3_bucket.frontend.arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.frontend.arn
+          }
+        }
+      }
+    ]
+  })
 }

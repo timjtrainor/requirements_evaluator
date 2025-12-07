@@ -130,12 +130,64 @@ header h1 {
     border: 2px solid var(--border-color);
     border-radius: 6px;
     text-align: center;
+    position: relative;
 }
 
 .summary-card h3 {
     font-size: 0.9rem;
     color: var(--text-secondary);
     margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* Tooltip */
+.tooltip-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    background-color: var(--text-secondary);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    cursor: help;
+    position: relative;
+}
+
+.tooltip-trigger:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--text-primary);
+    color: white;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    white-space: normal;
+    max-width: 200px;
+    width: max-content;
+    text-align: left;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.tooltip-trigger:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 2px;
+    border: 4px solid transparent;
+    border-top-color: var(--text-primary);
+    z-index: 1001;
 }
 
 .summary-card .indicator {
@@ -260,6 +312,61 @@ footer p {
 .model-info {
     font-size: 0.75rem;
     font-style: italic;
+}
+
+/* Feedback Section */
+.feedback-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.feedback-section p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.feedback-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+}
+
+.feedback-btn {
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--border-color);
+    background-color: white;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.feedback-btn:hover {
+    border-color: var(--primary-color);
+    background-color: #f1f5f9;
+}
+
+.feedback-btn.selected {
+    border-color: var(--primary-color);
+    background-color: #dbeafe;
+    color: var(--primary-color);
+}
+
+.feedback-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.feedback-thank-you {
+    color: var(--success-color);
+    font-weight: 600;
+    margin-top: 0.5rem;
 }
 
 /* Loading Animation */
