@@ -51,7 +51,7 @@ resource "aws_dynamodb_table" "rate_limit" {
 # -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.project_name}-lambda-role-${var.environment}"
+  name               = "${var.project_name}-lambda-role-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -74,8 +74,8 @@ resource "aws_iam_role" "lambda_role" {
 
 # CloudWatch Logs policy
 resource "aws_iam_role_policy" "lambda_logs" {
-  name = "${var.project_name}-lambda-logs-${var.environment}"
-  role = aws_iam_role.lambda_role.id
+  name   = "${var.project_name}-lambda-logs-${var.environment}"
+  role   = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -95,8 +95,8 @@ resource "aws_iam_role_policy" "lambda_logs" {
 
 # DynamoDB policy for rate limiting
 resource "aws_iam_role_policy" "lambda_dynamodb" {
-  name = "${var.project_name}-lambda-dynamodb-${var.environment}"
-  role = aws_iam_role.lambda_role.id
+  name   = "${var.project_name}-lambda-dynamodb-${var.environment}"
+  role   = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -117,8 +117,8 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
 
 # Bedrock policy
 resource "aws_iam_role_policy" "lambda_bedrock" {
-  name = "${var.project_name}-lambda-bedrock-${var.environment}"
-  role = aws_iam_role.lambda_role.id
+  name   = "${var.project_name}-lambda-bedrock-${var.environment}"
+  role   = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -216,7 +216,7 @@ resource "aws_apigatewayv2_stage" "default" {
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_logs.arn
-    format = jsonencode({
+    format           = jsonencode({
       requestId      = "$context.requestId"
       ip             = "$context.identity.sourceIp"
       requestTime    = "$context.requestTime"
