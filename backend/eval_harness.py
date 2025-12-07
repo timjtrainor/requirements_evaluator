@@ -24,7 +24,7 @@ bedrock_client = boto3.client(
     config=boto3.session.Config(
         connect_timeout=config.bedrock_timeout,
         read_timeout=config.bedrock_timeout,
-    )
+    ),
 )
 
 
@@ -41,9 +41,11 @@ def build_evaluation_prompt(requirement_text: str) -> str:
         Evaluate the requirement and respond with ONLY valid JSON in this exact format:
         {{
             "ambiguity_detected": true/false,
-            "ambiguity_details": "explanation of any ambiguous terms or phrases, or 'None' if clear",
+            "ambiguity_details": "explanation of any ambiguous terms or phrases, \
+or 'None' if clear",
             "testable": true/false,
-            "testability_details": "explanation of whether the requirement can be objectively tested",
+            "testability_details": "explanation of whether the requirement can be \
+objectively tested",
             "completeness_score": 1-10,
             "completeness_details": "explanation of what information may be missing",
             "issues": ["list", "of", "specific", "issues"],
@@ -63,12 +65,7 @@ def call_bedrock(requirement_text: str) -> Optional[Dict[str, Any]]:
 
     if model_id.startswith("openai."):
         request_body = {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
+            "messages": [{"role": "user", "content": prompt}],
             "temperature": config.model_temperature,
             "max_tokens": config.model_max_tokens,
         }
@@ -87,14 +84,14 @@ def call_bedrock(requirement_text: str) -> Optional[Dict[str, Any]]:
                     ],
                 }
             ],
-            "temperature": config.model_temperature
+            "temperature": config.model_temperature,
         }
 
     response = bedrock_client.invoke_model(
         modelId=model_id,
         contentType="application/json",
         accept="application/json",
-        body=json.dumps(request_body)
+        body=json.dumps(request_body),
     )
 
     response_body = json.loads(response["body"].read())
@@ -110,12 +107,12 @@ def call_bedrock(requirement_text: str) -> Optional[Dict[str, Any]]:
 
     try:
         evaluation = json.loads(content)
-        
+
         # Validate the response schema
         is_valid, error_msg = validate_response_schema(evaluation)
         if not is_valid:
             print(f"Warning: Schema validation failed: {error_msg}")
-        
+
         return evaluation
     except json.JSONDecodeError:
         return None
@@ -143,7 +140,7 @@ def evaluate_sample(sample: Dict[str, Any]) -> Dict[str, Any]:
             return {
                 "requirement": requirement,
                 "status": "error",
-                "error": "Failed to parse AI response"
+                "error": "Failed to parse AI response",
             }
 
         # Compare results
@@ -281,7 +278,9 @@ def compute_metrics(results: List[Dict[str, Any]]) -> Dict[str, Any]:
             )
 
     # Completeness accuracy
-    comp_total = metrics["completeness"]["within_threshold"] + metrics["completeness"]["outside_threshold"]
+    comp_total = (
+        metrics["completeness"]["within_threshold"] + metrics["completeness"]["outside_threshold"]
+    )
     if comp_total > 0:
         metrics["completeness"]["accuracy"] = (
             metrics["completeness"]["within_threshold"] / comp_total
@@ -365,6 +364,6 @@ def main() -> None:
             json.dump({"results": results, "metrics": metrics}, f, indent=2)
         print(f"\nDetailed results saved to: {output_path}")
 
+
 if __name__ == "__main__":
     main()
-
