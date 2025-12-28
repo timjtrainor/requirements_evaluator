@@ -111,16 +111,25 @@ def call_bedrock(requirement_text: str) -> Optional[Dict[str, Any]]:
 
     response_body = json.loads(response["body"].read())
 
+    content = ""
+
     if model_id.startswith("openai."):
         first_choice = response_body.get("choices", [{}])[0]
         message = first_choice.get("message", {})
         content = message.get("content", "")
         if isinstance(content, list):
-            content = "".join(block.get("text", "") for block in content if isinstance(block, dict))
-        elif model_id.startswith("amazon.nova"):
-            content = response_body.get("output", {}).get("message", {}).get("content", [{}])[0].get("text", "")
-        else:
-            content = response_body.get("content", [{}])[0].get("text", "")
+            content = "".join(
+                block.get("text", "") for block in content if isinstance(block, dict)
+            )
+    elif model_id.startswith("amazon.nova"):
+        content = (
+            response_body.get("output", {})
+            .get("message", {})
+            .get("content", [{}])[0]
+            .get("text", "")
+        )
+    else:
+        content = response_body.get("content", [{}])[0].get("text", "")
 
     try:
         evaluation = json.loads(content)
