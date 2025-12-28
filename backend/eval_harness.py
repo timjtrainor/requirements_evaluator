@@ -73,16 +73,8 @@ def call_bedrock(requirement_text: str) -> Optional[Dict[str, Any]]:
         # Amazon Nova format
         request_body = {
             "schemaVersion": "messages-v1",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [{"text": prompt}]
-                }
-            ],
-            "inferenceConfig": {
-                "max_new_tokens": 1024,
-                "temperature": 0.2
-            }
+            "messages": [{"role": "user", "content": [{"text": prompt}]}],
+            "inferenceConfig": {"max_new_tokens": 1024, "temperature": 0.2},
         }
     else:
         request_body = {
@@ -118,9 +110,7 @@ def call_bedrock(requirement_text: str) -> Optional[Dict[str, Any]]:
         message = first_choice.get("message", {})
         content = message.get("content", "")
         if isinstance(content, list):
-            content = "".join(
-                block.get("text", "") for block in content if isinstance(block, dict)
-            )
+            content = "".join(block.get("text", "") for block in content if isinstance(block, dict))
     elif model_id.startswith("amazon.nova"):
         content = (
             response_body.get("output", {})
