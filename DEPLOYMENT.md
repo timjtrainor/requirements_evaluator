@@ -180,7 +180,18 @@ cd infra
 terraform init
 
 # Review the plan
-# Ensure you pass your Bedrock Bearer Token
+#
+# If your AWS account or organization uses Bedrock bearer-token authentication
+# (instead of IAM-only authentication), set your Bedrock bearer token in the
+# AWS_BEARER_TOKEN_BEDROCK environment variable before running Terraform.
+# Replace <YOUR_BEDROCK_BEARER_TOKEN> with the actual token value you have been
+# provided by your administrator or obtained via your organization's process.
+#
+# Example:
+# export AWS_BEARER_TOKEN_BEDROCK="<YOUR_BEDROCK_BEARER_TOKEN>"
+#
+# If you use IAM-only authentication for Bedrock, you can omit this variable.
+# In that case, Terraform will still run using your IAM credentials.
 export TF_VAR_bedrock_bearer_token=$AWS_BEARER_TOKEN_BEDROCK
 terraform plan
 
