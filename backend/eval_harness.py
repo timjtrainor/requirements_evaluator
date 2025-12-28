@@ -80,8 +80,8 @@ def call_bedrock(requirement_text: str) -> Optional[Dict[str, Any]]:
                 }
             ],
             "inferenceConfig": {
-                "max_new_tokens": 1024,
-                "temperature": 0.2
+                "max_new_tokens": config.model_max_tokens,
+                "temperature": config.model_temperature
             }
         }
     else:
