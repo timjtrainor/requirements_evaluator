@@ -81,7 +81,8 @@ def validate_request(body: Dict[str, Any]) -> Tuple[bool, str]:
     if len(requirement_text) > config.max_requirement_length:
         return (
             False,
-            f"requirementText exceeds maximum length of {config.max_requirement_length} characters",
+            f"requirementText exceeds maximum length of {config.max_requirement_length} "
+            f"characters",
         )
 
     return True, ""
@@ -169,16 +170,11 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
         # Amazon Nova format
         request_body = {
             "schemaVersion": "messages-v1",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [{"text": prompt}]
-                }
-            ],
+            "messages": [{"role": "user", "content": [{"text": prompt}]}],
             "inferenceConfig": {
                 "max_new_tokens": config.model_max_tokens,
-                "temperature": config.model_temperature
-            }
+                "temperature": config.model_temperature,
+            },
         }
     else:
         # Default/Legacy format (often Titan or older models)
@@ -189,7 +185,7 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
                 "stopSequences": [],
                 "temperature": config.model_temperature,
                 "topP": 0.9,
-            }
+            },
         }
 
     logger.info(
@@ -228,7 +224,12 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
                 )
         elif model_id.startswith("amazon.nova") or model_id.startswith("us.amazon.nova"):
             # Amazon Nova returns output.message.content[0].text
-            content = response_body.get("output", {}).get("message", {}).get("content", [{}])[0].get("text", "")
+            content = (
+                response_body.get("output", {})
+                .get("message", {})
+                .get("content", [{}])[0]
+                .get("text", "")
+            )
         else:
             # Default fallback for Titan/older models
             # Often they return 'results' or direct 'outputText'
