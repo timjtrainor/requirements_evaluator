@@ -126,9 +126,13 @@ resource "aws_iam_role_policy" "lambda_bedrock" {
       {
         Effect = "Allow"
         Action = [
-          "bedrock:InvokeModel"
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
         ]
-        Resource = "arn:aws:bedrock:${var.aws_region}::foundation-model/${var.bedrock_model_id}"
+        Resource = [
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/*",
+          "arn:aws:bedrock:${var.aws_region}::inference-profile/*"
+        ]
       }
     ]
   })
@@ -168,6 +172,7 @@ resource "aws_lambda_function" "evaluator" {
       MODEL_MAX_TOKENS        = var.model_max_tokens
       MIN_REQUIREMENT_LENGTH  = var.min_requirement_length
       MAX_REQUIREMENT_LENGTH  = var.max_requirement_length
+      AWS_BEARER_TOKEN_BEDROCK = var.bedrock_bearer_token
     }
   }
 
@@ -303,6 +308,8 @@ resource "aws_cloudfront_distribution" "frontend" {
   default_root_object = "index.html"
   comment             = "${var.project_name} - ${var.environment}"
 
+  aliases = var.custom_domain_name != "" ? [var.custom_domain_name] : []
+
   origin {
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
     origin_id                = "S3Origin"
@@ -366,7 +373,10 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    acm_certificate_arn            = var.acm_certificate_arn != "" ? var.acm_certificate_arn : null
+    cloudfront_default_certificate = var.acm_certificate_arn == "" ? true : false
+    ssl_support_method             = var.acm_certificate_arn != "" ? "sni-only" : null
+    minimum_protocol_version       = var.acm_certificate_arn != "" ? "TLSv1.2_2021" : "TLSv1"
   }
 
   custom_error_response {

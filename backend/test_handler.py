@@ -5,6 +5,7 @@ Tests input validation, error handling, and integration with mocked Bedrock.
 """
 
 import json
+from typing import Any, Dict
 import os
 import unittest
 from unittest.mock import MagicMock, patch
@@ -117,7 +118,7 @@ class TestGetClientIp(unittest.TestCase):
 
     def test_unknown_ip(self):
         """Test that unknown is returned when no IP found."""
-        event = {"requestContext": {}, "headers": {}}
+        event: Dict[str, Any] = {"requestContext": {}, "headers": {}}
         ip = get_client_ip(event)
         self.assertEqual(ip, "unknown")
 

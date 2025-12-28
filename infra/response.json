@@ -1,0 +1,1 @@
+{"output":{"message":{"content":[{"text":"Hello! Yes, I'm active and here to help. How can I assist you today? Whether you have questions, need information, or just want to chat, feel free to ask!"}],"role":"assistant"}},"stopReason":"end_turn","usage":{"inputTokens":6,"outputTokens":40,"totalTokens":46,"cacheReadInputTokenCount":0,"cacheWriteInputTokenCount":0}}

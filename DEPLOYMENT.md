@@ -11,6 +11,59 @@ Before deploying:
 3. **Python**: Version 3.11+ installed
 4. **Bedrock Access**: Model access enabled in your AWS region
 
+## Environment Setup
+
+### 1. Virtual Environment (Recommended)
+
+To avoid dependency conflicts with system-wide packages (like Spyder or aiobotocore), it is highly recommended to use a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+### 2. AWS Credentials
+
+Terraform and the AWS SDK require credentials to interact with your account.
+
+**Option A: AWS CLI (Recommended)**
+If you have the [AWS CLI](https://aws.amazon.com/cli/) installed, run:
+
+```bash
+aws configure
+```
+
+Follow the prompts to enter your Access Key ID, Secret Access Key, and default region (e.g., `us-east-1`).
+
+**Option B: Environment Variables**
+Alternatively, set these in your terminal session:
+
+```bash
+export AWS_ACCESS_KEY_ID="your_access_key"
+export AWS_SECRET_ACCESS_KEY="your_secret_key"
+### 3. Required Permissions
+
+The AWS user or role used for deployment requires permissions to manage the following services:
+
+- **IAM**: Create roles and policies for Lambda
+- **Lambda**: Create and update the evaluator function
+- **API Gateway**: Create HTTP APIs, routes, and stages
+- **DynamoDB**: Create the rate-limiting table
+- **S3**: Manage the frontend assets bucket and policies
+- **CloudFront**: Create OAC and distributions
+- **CloudWatch Logs**: Create log groups and set retention
+- **Bedrock**: Model access must be enabled (managed via AWS Console)
+
+**Recommended Managed Policies:**
+For a standard deployment, the following AWS managed policies provide sufficient access:
+- `IAMFullAccess`
+- `AWSLambda_FullAccess`
+- `AmazonAPIGatewayAdministrator`
+- `AmazonDynamoDBFullAccess`
+- `AmazonS3FullAccess`
+- `CloudFrontFullAccess`
+- `CloudWatchLogsFullAccess`
+
 ## Pre-Deployment Validation
 
 ### 1. Run Tests Locally
@@ -78,7 +131,7 @@ Create `infra/terraform.tfvars`:
 # Project configuration
 project_name     = "requirements-evaluator"
 environment      = "prod"  # or "dev", "staging"
-aws_region       = "us-east-1"
+aws_region       = "us-west-2"
 
 # Model configuration
 bedrock_model_id = "anthropic.claude-3-sonnet-20240229-v1:0"  # or your preferred model
@@ -99,43 +152,129 @@ model_max_tokens  = 1024
 log_level = "INFO"  # Use "DEBUG" for development
 ```
 
-### 2. Deploy Infrastructure
+### 2. Build & Package Lambda
+
+The Lambda function requires external dependencies (like Pydantic). Since Lambda runs on Linux, you must install the **Linux** versions of these packages, even if you are on a Mac:
+
+```bash
+# 1. Clean up any previous local installs in the backend folder
+rm -rf backend/annotated_types* backend/bin backend/boto3* backend/botocore* backend/dateutil* backend/dotenv* backend/jmespath* backend/pydantic* backend/python_dateutil* backend/python_dotenv* backend/s3transfer* backend/six* backend/typing_extensions* backend/typing_inspection* backend/urllib3*
+
+# 2. Install Linux-compatible dependencies
+pip install \
+    --platform manylinux2014_x86_64 \
+    --target backend/ \
+    --implementation cp \
+    --python-version 3.11 \
+    --only-binary=:all: \
+    --upgrade \
+    -r backend/requirements.txt
+```
+
+### 3. Deploy Infrastructure
 
 ```bash
 cd infra
 
+# Initialize if you haven't already
+terraform init
+
 # Review the plan
+# Ensure you pass your Bedrock Bearer Token
+export TF_VAR_bedrock_bearer_token=$AWS_BEARER_TOKEN_BEDROCK
 terraform plan
 
 # Deploy
 terraform apply
-
-# Save outputs
-terraform output -json > ../deployment-outputs.json
 ```
 
-### 3. Upload Frontend Assets
+### 4. Upload Frontend Assets
 
 ```bash
-# Get bucket name from Terraform
+# From the project root
+# Get the NEW bucket name from Terraform
 BUCKET_NAME=$(cd infra && terraform output -raw frontend_bucket_name)
 
 # Upload frontend files
 aws s3 sync frontend/ s3://$BUCKET_NAME/
-
-# Verify upload
-aws s3 ls s3://$BUCKET_NAME/
 ```
 
-### 4. Invalidate CloudFront Cache
+### 5. Invalidate CloudFront Cache
 
 ```bash
 # Get distribution ID
 DIST_ID=$(cd infra && terraform output -raw cloudfront_distribution_id)
 
-# Invalidate cache
+# Invalidate cache to ensure CloudFront serves the latest assets
 aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
 ```
+
+## Custom Domain and Sub-domain Setup for CloudFront
+
+After deploying the infrastructure and frontend, follow these steps to use a custom domain (e.g., `req-eval.the-trainors.com`) instead of the default CloudFront URL:
+
+### 1. Prepare Your Sub-domain
+
+- Log in to your domain registrar or DNS hosting provider (e.g., AWS Route 53).
+- Decide the sub-domain you want (e.g., `req-eval.the-trainors.com`).
+
+### 2. Get CloudFront Distribution URL
+
+- After running `terraform apply`, find your CloudFront distribution domain name:
+
+  ```bash
+  DIST_ID=$(cd infra && terraform output -raw cloudfront_distribution_id)
+  CLOUDFRONT_DOMAIN=$(aws cloudfront get-distribution --id $DIST_ID --query 'Distribution.DomainName' --output text)
+  echo $CLOUDFRONT_DOMAIN
+  ```
+
+- Example output: `d123456abcdef8.cloudfront.net`
+
+### 3. Configure DNS Records
+
+- Add a **CNAME** record in your DNS settings:
+  - **Name:** `req-eval.the-trainors.com`
+  - **Type:** CNAME
+  - **Value:** `CLOUDFRONT_DOMAIN` (e.g., `d123456abcdef8.cloudfront.net`)
+- If using AWS Route 53:
+  - Open the Route 53 hosted zone for your domain.
+  - Click "Create record", choose "CNAME", and fill out as above.
+
+### 4. Add Alternate Domain Name to CloudFront
+
+- CloudFront must recognize your custom domain as an "Alternate Domain Name (CNAME)".
+- You can update the distribution manually via AWS Console (CloudFront > your distribution > Edit > Alternate Domain Names).
+- Or automate via Terraform by updating your `cloudfront` resource:
+
+  ```hcl
+  aliases = ["req-eval.the-trainors.com"]
+  ```
+
+- Redeploy Terraform if making changes.
+
+### 5. Set Up SSL/TLS Certificate (HTTPS recommended)
+
+- Use AWS Certificate Manager (ACM) to request a public certificate for your custom domain (`req-eval.the-trainors.com`).
+- Validate the certificate (typically via DNS).
+- In CloudFront, attach the ACM certificate to your distribution:
+  - Under SSL certificate, choose "Custom SSL Certificate (example.com)" and select your validated ACM certificate.
+- Update Terraform as needed to automate certificate provisioning/attachment.
+
+### 6. Final Validation
+
+- Wait for DNS propagation (can take up to 30 minutes).
+- Visit `https://req-eval.the-trainors.com` in your browser.
+- If the site loads, the domain setup is complete.
+
+### Troubleshooting Tips
+
+- If CloudFront returns a 403 or “Bad Request”, verify your CNAME and CloudFront alias settings.
+- For HTTPS/SSL issues, ensure your ACM certificate is correctly attached and not expired.
+- Use `aws cloudfront get-distribution` and domain tools to check status.
+
+---
+
+**Note:** Domain setup is not fully automated in the base Terraform scripts—you must configure DNS and certificate validation yourself.
 
 ## Post-Deployment Validation
 
@@ -427,6 +566,7 @@ After successful deployment:
 ## Support
 
 For issues:
+
 1. Check CloudWatch logs
 2. Review SECURITY.md for best practices
 3. Consult API_SCHEMA.md for API details

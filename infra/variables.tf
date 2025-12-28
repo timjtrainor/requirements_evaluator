@@ -138,3 +138,22 @@ variable "max_requirement_length" {
     error_message = "max_requirement_length must be between 100 and 50000 characters"
   }
 }
+
+variable "bedrock_bearer_token" {
+  description = "Amazon Bedrock Bearer Token for authentication (Optional if using IAM)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "custom_domain_name" {
+  description = "Custom domain name for the application (e.g. req-eval.the-trainors.com)"
+  type        = string
+  default     = ""
+}
+
+variable "acm_certificate_arn" {
+  description = "ARN of the ACM certificate for the custom domain (must be in us-east-1)"
+  type        = string
+  default     = ""
+}

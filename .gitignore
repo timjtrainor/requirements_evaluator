@@ -51,3 +51,22 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Vendored dependencies (installed into backend/ for Lambda)
+backend/annotated_types*/
+backend/bin/
+backend/boto3*/
+backend/botocore*/
+backend/dateutil/
+backend/dotenv/
+backend/jmespath*/
+backend/pydantic*/
+backend/pydantic_core*/
+backend/pydantic_settings*/
+backend/python_dateutil*/
+backend/python_dotenv*/
+backend/s3transfer*/
+backend/six*
+backend/typing_extensions*
+backend/typing_inspection*/
+backend/urllib3*/
