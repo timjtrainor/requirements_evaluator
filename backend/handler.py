@@ -10,7 +10,7 @@ import json
 import logging
 import time
 from textwrap import dedent
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, cast
 
 import boto3
 from botocore.exceptions import ClientError
@@ -81,7 +81,8 @@ def validate_request(body: Dict[str, Any]) -> Tuple[bool, str]:
     if len(requirement_text) > config.max_requirement_length:
         return (
             False,
-            f"requirementText exceeds maximum length of {config.max_requirement_length} characters",
+            f"requirementText exceeds maximum length of {config.max_requirement_length} "
+            f"characters",
         )
 
     return True, ""
@@ -157,13 +158,34 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
             "temperature": config.model_temperature,
             "max_tokens": config.model_max_tokens,
         }
-    else:
-        # Default to Anthropic format
+    elif model_id.startswith("anthropic."):
+        # Anthropic format
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": config.model_max_tokens,
             "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
             "temperature": config.model_temperature,
+        }
+    elif model_id.startswith("amazon.nova") or model_id.startswith("us.amazon.nova"):
+        # Amazon Nova format
+        request_body = {
+            "schemaVersion": "messages-v1",
+            "messages": [{"role": "user", "content": [{"text": prompt}]}],
+            "inferenceConfig": {
+                "max_new_tokens": config.model_max_tokens,
+                "temperature": config.model_temperature,
+            },
+        }
+    else:
+        # Default/Legacy format (often Titan or older models)
+        request_body = {
+            "inputText": prompt,
+            "textGenerationConfig": {
+                "maxTokenCount": config.model_max_tokens,
+                "stopSequences": [],
+                "temperature": config.model_temperature,
+                "topP": 0.9,
+            },
         }
 
     logger.info(
@@ -171,6 +193,7 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
         model_id=model_id,
         temperature=config.model_temperature,
         max_tokens=config.model_max_tokens,
+        request_payload=request_body,
     )
 
     try:
@@ -199,7 +222,17 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
                 content = "".join(
                     block.get("text", "") for block in content if isinstance(block, dict)
                 )
+        elif model_id.startswith("amazon.nova") or model_id.startswith("us.amazon.nova"):
+            # Amazon Nova returns output.message.content[0].text
+            content = (
+                response_body.get("output", {})
+                .get("message", {})
+                .get("content", [{}])[0]
+                .get("text", "")
+            )
         else:
+            # Default fallback for Titan/older models
+            # Often they return 'results' or direct 'outputText'
             content = response_body.get("content", [{}])[0].get("text", "")
 
         logger.debug("Bedrock response received", content_length=len(content))
@@ -216,7 +249,7 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
                 # Continue with the response even if schema validation fails,
                 # but log the issue for monitoring
 
-            return evaluation
+            return cast(Dict[str, Any], evaluation)
         except json.JSONDecodeError as e:
             logger.error(
                 "Failed to parse Bedrock response",
@@ -264,7 +297,7 @@ def get_client_ip(event: Dict[str, Any]) -> str:
     source_ip = identity.get("sourceIp")
 
     if source_ip:
-        return source_ip
+        return cast(str, source_ip)
 
     # Try headers (X-Forwarded-For from CloudFront/ALB)
     headers = event.get("headers", {}) or {}
@@ -272,7 +305,7 @@ def get_client_ip(event: Dict[str, Any]) -> str:
 
     if forwarded_for:
         # Take the first IP in the chain
-        return forwarded_for.split(",")[0].strip()
+        return cast(str, forwarded_for.split(",")[0].strip())
 
     return "unknown"
 

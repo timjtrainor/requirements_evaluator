@@ -1,0 +1,119 @@
+{
+  "api_evaluate_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "https://ouz7wi4ocb.execute-api.us-east-1.amazonaws.com/evaluate"
+  },
+  "api_log_group": {
+    "sensitive": false,
+    "type": "string",
+    "value": "/aws/apigateway/requirements-evaluator-dev"
+  },
+  "api_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "https://ouz7wi4ocb.execute-api.us-east-1.amazonaws.com"
+  },
+  "bedrock_model_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "openai.gpt-oss-120b-1:0"
+  },
+  "bedrock_region": {
+    "sensitive": false,
+    "type": "string",
+    "value": "us-east-1"
+  },
+  "bedrock_timeout": {
+    "sensitive": false,
+    "type": "number",
+    "value": 30
+  },
+  "cloudfront_distribution_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "E3RJCJAN9HC160"
+  },
+  "cloudfront_domain_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "d1kl0ecp6j3wgv.cloudfront.net"
+  },
+  "cloudfront_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "https://d1kl0ecp6j3wgv.cloudfront.net"
+  },
+  "daily_rate_limit": {
+    "sensitive": false,
+    "type": "number",
+    "value": 50
+  },
+  "deployment_summary": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "api_endpoint": "string",
+        "bedrock_model": "string",
+        "bedrock_timeout": "number",
+        "daily_rate_limit": "number",
+        "environment": "string",
+        "frontend_url": "string",
+        "lambda_timeout": "number",
+        "log_level": "string",
+        "model_max_tokens": "number",
+        "model_temperature": "number",
+        "region": "string"
+      }
+    ],
+    "value": {
+      "api_endpoint": "https://ouz7wi4ocb.execute-api.us-east-1.amazonaws.com/evaluate",
+      "bedrock_model": "openai.gpt-oss-120b-1:0",
+      "bedrock_timeout": 30,
+      "daily_rate_limit": 50,
+      "environment": "dev",
+      "frontend_url": "https://d1kl0ecp6j3wgv.cloudfront.net",
+      "lambda_timeout": 30,
+      "log_level": "INFO",
+      "model_max_tokens": 1024,
+      "model_temperature": 0.2,
+      "region": "us-east-1"
+    }
+  },
+  "dynamodb_table_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "requirements-evaluator-rate-limit-dev"
+  },
+  "frontend_bucket_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "requirements-evaluator-frontend-dev-828122480469"
+  },
+  "lambda_function_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:lambda:us-east-1:828122480469:function:requirements-evaluator-dev"
+  },
+  "lambda_function_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "requirements-evaluator-dev"
+  },
+  "lambda_log_group": {
+    "sensitive": false,
+    "type": "string",
+    "value": "/aws/lambda/requirements-evaluator-dev"
+  },
+  "lambda_timeout": {
+    "sensitive": false,
+    "type": "number",
+    "value": 30
+  },
+  "log_level": {
+    "sensitive": false,
+    "type": "string",
+    "value": "INFO"
+  }
+}

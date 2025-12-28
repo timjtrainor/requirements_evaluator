@@ -8,7 +8,7 @@ import json
 import os
 import sys
 from textwrap import dedent
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import boto3
 
@@ -69,6 +69,13 @@ def call_bedrock(requirement_text: str) -> Optional[Dict[str, Any]]:
             "temperature": config.model_temperature,
             "max_tokens": config.model_max_tokens,
         }
+    elif model_id.startswith("amazon.nova"):
+        # Amazon Nova format
+        request_body = {
+            "schemaVersion": "messages-v1",
+            "messages": [{"role": "user", "content": [{"text": prompt}]}],
+            "inferenceConfig": {"max_new_tokens": 1024, "temperature": 0.2},
+        }
     else:
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
@@ -96,12 +103,21 @@ def call_bedrock(requirement_text: str) -> Optional[Dict[str, Any]]:
 
     response_body = json.loads(response["body"].read())
 
+    content = ""
+
     if model_id.startswith("openai."):
         first_choice = response_body.get("choices", [{}])[0]
         message = first_choice.get("message", {})
         content = message.get("content", "")
         if isinstance(content, list):
             content = "".join(block.get("text", "") for block in content if isinstance(block, dict))
+    elif model_id.startswith("amazon.nova"):
+        content = (
+            response_body.get("output", {})
+            .get("message", {})
+            .get("content", [{}])[0]
+            .get("text", "")
+        )
     else:
         content = response_body.get("content", [{}])[0].get("text", "")
 
@@ -113,7 +129,7 @@ def call_bedrock(requirement_text: str) -> Optional[Dict[str, Any]]:
         if not is_valid:
             print(f"Warning: Schema validation failed: {error_msg}")
 
-        return evaluation
+        return cast(Dict[str, Any], evaluation)
     except json.JSONDecodeError:
         return None
 
@@ -205,7 +221,7 @@ def compute_metrics(results: List[Dict[str, Any]]) -> Dict[str, Any]:
     Returns:
         Dictionary with computed metrics
     """
-    metrics = {
+    metrics: Dict[str, Any] = {
         "total_samples": len(results),
         "successful_evaluations": 0,
         "errors": 0,
@@ -216,10 +232,10 @@ def compute_metrics(results: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     for result in results:
         if result.get("status") == "error":
-            metrics["errors"] += 1
+            metrics["errors"] = int(metrics["errors"]) + 1
             continue
 
-        metrics["successful_evaluations"] += 1
+        metrics["successful_evaluations"] = int(metrics["successful_evaluations"]) + 1
         comparisons = result.get("comparisons", {})
 
         # Ambiguity metrics
@@ -256,9 +272,13 @@ def compute_metrics(results: List[Dict[str, Any]]) -> Dict[str, Any]:
         if "completeness" in comparisons:
             comp = comparisons["completeness"]
             if comp.get("within_threshold"):
-                metrics["completeness"]["within_threshold"] += 1
+                metrics["completeness"]["within_threshold"] = (
+                    int(metrics["completeness"]["within_threshold"]) + 1
+                )
             else:
-                metrics["completeness"]["outside_threshold"] += 1
+                metrics["completeness"]["outside_threshold"] = (
+                    int(metrics["completeness"]["outside_threshold"]) + 1
+                )
 
     # Calculate accuracy rates
     for category in ["ambiguity", "testability"]:
@@ -283,7 +303,7 @@ def compute_metrics(results: List[Dict[str, Any]]) -> Dict[str, Any]:
     )
     if comp_total > 0:
         metrics["completeness"]["accuracy"] = (
-            metrics["completeness"]["within_threshold"] / comp_total
+            float(metrics["completeness"]["within_threshold"]) / comp_total
         )
 
     return metrics
