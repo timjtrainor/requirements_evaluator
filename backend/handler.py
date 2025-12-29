@@ -14,11 +14,12 @@ import time
 from textwrap import dedent
 from typing import Any, Dict, Tuple, cast
 
-# Add the 'package' directory to sys.path to support vendored dependencies
-# This allows us to separate Linux-specific binaries from our source code
-package_dir = os.path.join(os.path.dirname(__file__), "package")
-if os.path.exists(package_dir):
-    sys.path.insert(0, package_dir)
+# Add the 'package' directory to sys.path to support vendored dependencies when
+# running in AWS Lambda. This directory contains Linux-specific binaries.
+if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    package_dir = os.path.join(os.path.dirname(__file__), "package")
+    if os.path.exists(package_dir):
+        sys.path.insert(0, package_dir)
 
 import boto3  # noqa: E402
 from botocore.exceptions import ClientError  # noqa: E402
@@ -39,11 +40,7 @@ logger = StructuredLogger(base_logger)
 # Initialize Bedrock client using configuration
 bedrock_client = boto3.client(
     "bedrock-runtime",
-    region_name=config.bedrock_region,
-    config=boto3.session.Config(
-        connect_timeout=config.bedrock_timeout,
-        read_timeout=config.bedrock_timeout,
-    ),
+    region_name=config.bedrock_region
 )
 
 # CORS headers for API Gateway responses
@@ -211,34 +208,23 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
             "temperature": config.model_temperature,
             "max_tokens": config.model_max_tokens,
         }
-    elif model_id.startswith("anthropic."):
-        # Anthropic format
-        request_body = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": config.model_max_tokens,
-            "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
-            "temperature": config.model_temperature,
-        }
-    elif model_id.startswith("amazon.nova") or model_id.startswith("us.amazon.nova"):
+    elif "nova" in model_id.lower():
         # Amazon Nova format
         request_body = {
             "schemaVersion": "messages-v1",
             "messages": [{"role": "user", "content": [{"text": prompt}]}],
             "inferenceConfig": {
-                "max_new_tokens": config.model_max_tokens,
+                "maxTokens": config.model_max_tokens,
                 "temperature": config.model_temperature,
             },
         }
     else:
-        # Default/Legacy format (often Titan or older models)
+        # Default to Anthropic format (Claude)
         request_body = {
-            "inputText": prompt,
-            "textGenerationConfig": {
-                "maxTokenCount": config.model_max_tokens,
-                "stopSequences": [],
-                "temperature": config.model_temperature,
-                "topP": 0.9,
-            },
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": config.model_max_tokens,
+            "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
+            "temperature": config.model_temperature,
         }
 
     logger.info(
@@ -254,7 +240,7 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
             modelId=model_id,
             contentType="application/json",
             accept="application/json",
-            body=json.dumps(request_body),
+            body=json.dumps(request_body, separators=(",", ":")).encode("utf-8"),
         )
 
         duration = time.time() - start_time
@@ -275,7 +261,7 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
                 content = "".join(
                     block.get("text", "") for block in content if isinstance(block, dict)
                 )
-        elif model_id.startswith("amazon.nova") or model_id.startswith("us.amazon.nova"):
+        elif "nova" in model_id.lower():
             # Amazon Nova returns output.message.content[0].text
             content = (
                 response_body.get("output", {})
@@ -284,8 +270,8 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
                 .get("text", "")
             )
         else:
-            # Default fallback for Titan/older models
-            # Often they return 'results' or direct 'outputText'
+            # Default fallback for Claude/Anthropic
+            # Often they return 'content' as a list of text blocks
             content = response_body.get("content", [{}])[0].get("text", "")
 
         logger.debug("Bedrock response received", content_length=len(content))
@@ -483,6 +469,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             )
 
             evaluation = call_bedrock(requirement_text)
+            evaluation["request_id"] = request_id
 
             duration = time.time() - start_time
             logger.info(

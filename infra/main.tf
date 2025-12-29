@@ -152,10 +152,7 @@ resource "aws_iam_role_policy" "lambda_bedrock" {
           "bedrock:InvokeModel",
           "bedrock:InvokeModelWithResponseStream"
         ]
-        Resource = [
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/*",
-          "arn:aws:bedrock:${var.aws_region}::inference-profile/*"
-        ]
+        Resource = "*"
       }
     ]
   })
@@ -196,7 +193,6 @@ resource "aws_lambda_function" "evaluator" {
       MODEL_MAX_TOKENS         = var.model_max_tokens
       MIN_REQUIREMENT_LENGTH   = var.min_requirement_length
       MAX_REQUIREMENT_LENGTH   = var.max_requirement_length
-      AWS_BEARER_TOKEN_BEDROCK = var.bedrock_bearer_token
     }
   }
 
