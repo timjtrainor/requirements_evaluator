@@ -27,7 +27,8 @@
  */
 const CONFIG = {
     API_BASE_URL: '', // Empty for CloudFront deployment (routes via path_pattern)
-    EVALUATE_ENDPOINT: '/evaluate'
+    EVALUATE_ENDPOINT: '/evaluate',
+    FEEDBACK_ENDPOINT: '/feedback'
 };
 
 // =============================================================================
@@ -57,6 +58,9 @@ const elements = {
     // Feedback elements
     feedbackHelpful: document.getElementById('feedback-helpful'),
     feedbackNotHelpful: document.getElementById('feedback-not-helpful'),
+    feedbackCommentsSection: document.getElementById('feedback-comments-section'),
+    feedbackComments: document.getElementById('feedback-comments'),
+    submitFeedbackBtn: document.getElementById('submit-feedback-btn'),
     feedbackMessage: document.getElementById('feedback-message')
 };
 
@@ -67,8 +71,8 @@ const elements = {
 /**
  * Get the full API URL for the evaluate endpoint.
  */
-function getApiUrl() {
-    return CONFIG.API_BASE_URL + CONFIG.EVALUATE_ENDPOINT;
+function getApiUrl(endpoint) {
+    return CONFIG.API_BASE_URL + endpoint;
 }
 
 /**
@@ -77,12 +81,35 @@ function getApiUrl() {
  * @returns {Promise<Object>} - The evaluation results
  */
 async function evaluateRequirement(requirementText) {
-    const response = await fetch(getApiUrl(), {
+    const response = await fetch(getApiUrl(CONFIG.EVALUATE_ENDPOINT), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({ requirementText })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || `HTTP error: ${response.status}`);
+    }
+
+    return data;
+}
+
+/**
+ * Send feedback to the API.
+ * @param {Object} feedbackData - The feedback data
+ * @returns {Promise<Object>}
+ */
+async function sendFeedback(feedbackData) {
+    const response = await fetch(getApiUrl(CONFIG.FEEDBACK_ENDPOINT), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(feedbackData)
     });
 
     const data = await response.json();
@@ -213,6 +240,8 @@ function resetFeedback() {
     elements.feedbackNotHelpful.classList.remove('selected');
     elements.feedbackHelpful.disabled = false;
     elements.feedbackNotHelpful.disabled = false;
+    elements.feedbackCommentsSection.style.display = 'none';
+    elements.feedbackComments.value = '';
     elements.feedbackMessage.style.display = 'none';
 }
 
@@ -224,27 +253,55 @@ function handleFeedback(isHelpful) {
     if (isHelpful) {
         elements.feedbackHelpful.classList.add('selected');
         elements.feedbackNotHelpful.classList.remove('selected');
+
+        // If helpful, send immediately
+        elements.feedbackHelpful.disabled = true;
+        elements.feedbackNotHelpful.disabled = true;
+
+        submitFeedback(true);
     } else {
         elements.feedbackNotHelpful.classList.add('selected');
         elements.feedbackHelpful.classList.remove('selected');
+
+        // If not helpful, disable buttons and show comments section
+        elements.feedbackHelpful.disabled = true;
+        elements.feedbackNotHelpful.disabled = true;
+
+        elements.feedbackCommentsSection.style.display = 'block';
+        elements.feedbackComments.focus();
     }
+}
+
+/**
+ * Submit feedback to backend.
+ */
+async function submitFeedback(isHelpful) {
+    const comments = elements.feedbackComments.value.trim();
+    const requirementText = elements.input.value.trim();
     
-    // Disable buttons
-    elements.feedbackHelpful.disabled = true;
-    elements.feedbackNotHelpful.disabled = true;
-    
-    // Show thank you message
-    elements.feedbackMessage.style.display = 'block';
-    
-    // TODO: Send feedback to backend for analytics
-    // This could be implemented in a future version to collect
-    // feedback data for improving the model or evaluation criteria
-    // Example implementation:
-    // fetch('/feedback', {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify({ helpful: isHelpful, timestamp: Date.now() })
-    // });
+    try {
+        await sendFeedback({
+            helpful: isHelpful,
+            timestamp: Date.now(),
+            requirementText: requirementText,
+            comments: comments
+        });
+
+        // UI updates after successful send
+        elements.feedbackCommentsSection.style.display = 'none';
+        elements.feedbackMessage.style.display = 'block';
+
+        // Disable buttons if they weren't already
+        elements.feedbackHelpful.disabled = true;
+        elements.feedbackNotHelpful.disabled = true;
+
+    } catch (error) {
+        console.error('Error sending feedback:', error);
+        // Still show thank you message to user
+        elements.feedbackCommentsSection.style.display = 'none';
+        elements.feedbackMessage.style.display = 'block';
+        elements.feedbackMessage.textContent = 'Thank you!'; // Fallback message
+    }
 }
 
 // =============================================================================
@@ -303,4 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Feedback button handlers
     elements.feedbackHelpful.addEventListener('click', () => handleFeedback(true));
     elements.feedbackNotHelpful.addEventListener('click', () => handleFeedback(false));
+
+    // Submit feedback button
+    elements.submitFeedbackBtn.addEventListener('click', () => submitFeedback(false));
 });

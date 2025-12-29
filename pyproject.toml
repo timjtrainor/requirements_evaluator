@@ -15,6 +15,7 @@ extend-exclude = '''
   | buck-out
   | build
   | dist
+  | backend/package
 )/
 '''
 
@@ -37,11 +38,13 @@ disable = [
 ]
 
 [tool.bandit]
-exclude_dirs = ["tests", "test_*.py"]
+exclude_dirs = ["tests", "test_*.py", "backend/package"]
+exclude = ["tests", "test_*.py", "backend/package"]
 skips = ["B101"]  # Skip assert_used
 
 [tool.mypy]
 python_version = "3.11"
+exclude = 'backend/package'
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
@@ -64,18 +67,18 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["backend"]
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
-addopts = "-v --tb=short"
+python_files = ["test_*.py"]
+norecursedirs = ["backend/package"]
 
 [tool.coverage.run]
 source = ["backend"]
 omit = [
-    "*/test_*.py",
-    "*/__pycache__/*",
-    "*/venv/*",
-    "*/.venv/*",
+    "**/package/*",
+    "**/tests/*",
+    "**/test_*.py",
+    "**/__pycache__/*",
+    "**/venv/*",
+    "**/.venv/*",
 ]
 
 [tool.coverage.report]

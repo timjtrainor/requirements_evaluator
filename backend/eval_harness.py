@@ -10,9 +10,15 @@ import sys
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, cast
 
-import boto3
+# Add the 'package' directory to sys.path to support vendored dependencies
+# This allows us to separate Linux-specific binaries from our source code
+package_dir = os.path.join(os.path.dirname(__file__), "package")
+if os.path.exists(package_dir):
+    sys.path.insert(0, package_dir)
 
-from config import get_config, validate_response_schema
+import boto3  # noqa: E402
+
+from config import get_config, validate_response_schema  # noqa: E402
 
 # Get configuration singleton
 config = get_config()

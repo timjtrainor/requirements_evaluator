@@ -92,17 +92,17 @@ output "api_log_group" {
 # Deployment Information
 output "deployment_summary" {
   description = "Summary of deployed resources and configuration"
-  value       = {
-    frontend_url          = "https://${aws_cloudfront_distribution.frontend.domain_name}"
-    api_endpoint          = "${aws_apigatewayv2_api.api.api_endpoint}/evaluate"
-    region                = var.aws_region
-    environment           = var.environment
-    bedrock_model         = var.bedrock_model_id
-    daily_rate_limit      = var.daily_rate_limit
-    lambda_timeout        = var.lambda_timeout
-    bedrock_timeout       = var.bedrock_timeout
-    log_level             = var.log_level
-    model_temperature     = var.model_temperature
-    model_max_tokens      = var.model_max_tokens
+  value = {
+    frontend_url      = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+    api_endpoint      = "${aws_apigatewayv2_api.api.api_endpoint}/evaluate"
+    region            = var.aws_region
+    environment       = var.environment
+    bedrock_model     = var.bedrock_model_id
+    daily_rate_limit  = var.daily_rate_limit
+    lambda_timeout    = var.lambda_timeout
+    bedrock_timeout   = var.bedrock_timeout
+    log_level         = var.log_level
+    model_temperature = var.model_temperature
+    model_max_tokens  = var.model_max_tokens
   }
 }

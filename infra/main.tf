@@ -6,7 +6,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.80"  # Pin to specific minor version for stability
+      version = "~> 5.80" # Pin to specific minor version for stability
     }
     archive = {
       source  = "hashicorp/archive"
@@ -47,11 +47,31 @@ resource "aws_dynamodb_table" "rate_limit" {
 }
 
 # -----------------------------------------------------------------------------
+# DynamoDB Table for Feedback
+# -----------------------------------------------------------------------------
+
+resource "aws_dynamodb_table" "feedback" {
+  name         = "${var.project_name}-feedback-${var.environment}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "feedback_id"
+
+  attribute {
+    name = "feedback_id"
+    type = "S"
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+# -----------------------------------------------------------------------------
 # IAM Role for Lambda
 # -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "lambda_role" {
-  name               = "${var.project_name}-lambda-role-${var.environment}"
+  name = "${var.project_name}-lambda-role-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -74,8 +94,8 @@ resource "aws_iam_role" "lambda_role" {
 
 # CloudWatch Logs policy
 resource "aws_iam_role_policy" "lambda_logs" {
-  name   = "${var.project_name}-lambda-logs-${var.environment}"
-  role   = aws_iam_role.lambda_role.id
+  name = "${var.project_name}-lambda-logs-${var.environment}"
+  role = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -95,8 +115,8 @@ resource "aws_iam_role_policy" "lambda_logs" {
 
 # DynamoDB policy for rate limiting
 resource "aws_iam_role_policy" "lambda_dynamodb" {
-  name   = "${var.project_name}-lambda-dynamodb-${var.environment}"
-  role   = aws_iam_role.lambda_role.id
+  name = "${var.project_name}-lambda-dynamodb-${var.environment}"
+  role = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -109,7 +129,10 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
           "dynamodb:UpdateItem",
           "dynamodb:Query"
         ]
-        Resource = aws_dynamodb_table.rate_limit.arn
+        Resource = [
+          aws_dynamodb_table.rate_limit.arn,
+          aws_dynamodb_table.feedback.arn
+        ]
       }
     ]
   })
@@ -117,8 +140,8 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
 
 # Bedrock policy
 resource "aws_iam_role_policy" "lambda_bedrock" {
-  name   = "${var.project_name}-lambda-bedrock-${var.environment}"
-  role   = aws_iam_role.lambda_role.id
+  name = "${var.project_name}-lambda-bedrock-${var.environment}"
+  role = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -162,16 +185,17 @@ resource "aws_lambda_function" "evaluator" {
 
   environment {
     variables = {
-      RATE_LIMIT_TABLE        = aws_dynamodb_table.rate_limit.name
-      DAILY_RATE_LIMIT        = var.daily_rate_limit
-      BEDROCK_REGION          = var.aws_region
-      BEDROCK_MODEL_ID        = var.bedrock_model_id
-      BEDROCK_TIMEOUT         = var.bedrock_timeout
-      LOG_LEVEL               = var.log_level
-      MODEL_TEMPERATURE       = var.model_temperature
-      MODEL_MAX_TOKENS        = var.model_max_tokens
-      MIN_REQUIREMENT_LENGTH  = var.min_requirement_length
-      MAX_REQUIREMENT_LENGTH  = var.max_requirement_length
+      RATE_LIMIT_TABLE         = aws_dynamodb_table.rate_limit.name
+      FEEDBACK_TABLE           = aws_dynamodb_table.feedback.name
+      DAILY_RATE_LIMIT         = var.daily_rate_limit
+      BEDROCK_REGION           = var.aws_region
+      BEDROCK_MODEL_ID         = var.bedrock_model_id
+      BEDROCK_TIMEOUT          = var.bedrock_timeout
+      LOG_LEVEL                = var.log_level
+      MODEL_TEMPERATURE        = var.model_temperature
+      MODEL_MAX_TOKENS         = var.model_max_tokens
+      MIN_REQUIREMENT_LENGTH   = var.min_requirement_length
+      MAX_REQUIREMENT_LENGTH   = var.max_requirement_length
       AWS_BEARER_TOKEN_BEDROCK = var.bedrock_bearer_token
     }
   }
@@ -221,7 +245,7 @@ resource "aws_apigatewayv2_stage" "default" {
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_logs.arn
-    format           = jsonencode({
+    format = jsonencode({
       requestId      = "$context.requestId"
       ip             = "$context.identity.sourceIp"
       requestTime    = "$context.requestTime"
@@ -259,6 +283,12 @@ resource "aws_apigatewayv2_integration" "lambda" {
 resource "aws_apigatewayv2_route" "evaluate" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "POST /evaluate"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "feedback" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST /feedback"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
@@ -348,6 +378,26 @@ resource "aws_cloudfront_distribution" "frontend" {
 
   ordered_cache_behavior {
     path_pattern           = "/evaluate"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "APIOrigin"
+    viewer_protocol_policy = "redirect-to-https"
+
+    forwarded_values {
+      query_string = true
+      headers      = ["Origin", "Access-Control-Request-Headers", "Access-Control-Request-Method"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  ordered_cache_behavior {
+    path_pattern           = "/feedback"
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD"]
     target_origin_id       = "APIOrigin"

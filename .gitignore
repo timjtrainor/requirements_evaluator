@@ -70,3 +70,4 @@ backend/six*
 backend/typing_extensions*
 backend/typing_inspection*/
 backend/urllib3*/
+backend/package/
