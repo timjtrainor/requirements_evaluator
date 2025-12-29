@@ -18,6 +18,7 @@ from botocore.exceptions import ClientError
 from config import get_config, validate_response_schema
 from logging_utils import StructuredLogger
 from rate_limit import check_and_increment_quota
+from feedback_service import save_feedback
 
 # Get configuration singleton
 config = get_config()
@@ -51,9 +52,9 @@ def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
     return {"statusCode": status_code, "headers": CORS_HEADERS, "body": json.dumps(body)}
 
 
-def validate_request(body: Dict[str, Any]) -> Tuple[bool, str]:
+def validate_evaluate_request(body: Dict[str, Any]) -> Tuple[bool, str]:
     """
-    Validate the incoming request body.
+    Validate the incoming evaluation request body.
 
     Args:
         body: Parsed JSON body from the request
@@ -84,6 +85,29 @@ def validate_request(body: Dict[str, Any]) -> Tuple[bool, str]:
             f"requirementText exceeds maximum length of {config.max_requirement_length} "
             f"characters",
         )
+
+    return True, ""
+
+
+def validate_feedback_request(body: Dict[str, Any]) -> Tuple[bool, str]:
+    """
+    Validate the incoming feedback request body.
+
+    Args:
+        body: Parsed JSON body from the request
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not body:
+        return False, "Request body is empty"
+
+    # helpful and timestamp are required
+    if "helpful" not in body:
+        return False, "Missing required field: helpful"
+
+    if "timestamp" not in body:
+        return False, "Missing required field: timestamp"
 
     return True, ""
 
@@ -344,6 +368,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.warning("Method not allowed", method=http_method, request_id=request_id)
         return create_response(405, {"error": "Method not allowed"})
 
+    # Determine path to route request
+    path = event.get("rawPath") or event.get("path") or event.get("requestContext", {}).get("http", {}).get("path") or ""
+
+    # Clean up path (handle stages if present)
+    # e.g. /prod/evaluate -> /evaluate
+    if path.endswith("/evaluate"):
+        path = "/evaluate"
+    elif path.endswith("/feedback"):
+        path = "/feedback"
+
     try:
         # Parse request body
         body_str = event.get("body", "")
@@ -357,38 +391,59 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             logger.warning("Invalid JSON in request", request_id=request_id, error=str(e))
             return create_response(400, {"error": "Invalid JSON in request body"})
 
-        # Validate request
-        is_valid, error_msg = validate_request(body)
-        if not is_valid:
-            logger.warning("Request validation failed", request_id=request_id, error=error_msg)
-            return create_response(400, {"error": error_msg})
-
-        # Check rate limit
+        # Get client IP
         client_ip = get_client_ip(event)
-        allowed, rate_error = check_and_increment_quota(client_ip)
 
-        if not allowed:
-            logger.warning("Rate limit exceeded", request_id=request_id, client_ip=client_ip)
-            return create_response(429, {"error": rate_error})
+        # Route request
+        if path == "/feedback":
+             # Validate feedback request
+            is_valid, error_msg = validate_feedback_request(body)
+            if not is_valid:
+                logger.warning("Feedback validation failed", request_id=request_id, error=error_msg)
+                return create_response(400, {"error": error_msg})
 
-        # Call Bedrock for evaluation
-        requirement_text = body["requirementText"].strip()
-        logger.info(
-            "Evaluating requirement",
-            request_id=request_id,
-            client_ip=client_ip,
-            requirement_length=len(requirement_text),
-        )
+            # Save feedback
+            body["client_ip"] = client_ip
+            success, error = save_feedback(body)
+            if not success:
+                return create_response(500, {"error": error})
 
-        evaluation = call_bedrock(requirement_text)
+            return create_response(200, {"message": "Feedback received"})
 
-        duration = time.time() - start_time
-        logger.info(
-            "Request completed successfully",
-            request_id=request_id,
-            total_duration_seconds=round(duration, 2),
-        )
-        return create_response(200, evaluation)
+        else:
+            # Default to evaluate (or specific /evaluate check)
+
+            # Validate evaluate request
+            is_valid, error_msg = validate_evaluate_request(body)
+            if not is_valid:
+                logger.warning("Request validation failed", request_id=request_id, error=error_msg)
+                return create_response(400, {"error": error_msg})
+
+            # Check rate limit
+            allowed, rate_error = check_and_increment_quota(client_ip)
+
+            if not allowed:
+                logger.warning("Rate limit exceeded", request_id=request_id, client_ip=client_ip)
+                return create_response(429, {"error": rate_error})
+
+            # Call Bedrock for evaluation
+            requirement_text = body["requirementText"].strip()
+            logger.info(
+                "Evaluating requirement",
+                request_id=request_id,
+                client_ip=client_ip,
+                requirement_length=len(requirement_text),
+            )
+
+            evaluation = call_bedrock(requirement_text)
+
+            duration = time.time() - start_time
+            logger.info(
+                "Request completed successfully",
+                request_id=request_id,
+                total_duration_seconds=round(duration, 2),
+            )
+            return create_response(200, evaluation)
 
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")

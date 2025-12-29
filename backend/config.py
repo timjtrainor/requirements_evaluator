@@ -55,6 +55,10 @@ class Config(BaseSettings):
     # Rate Limiting Configuration
     rate_limit_table: str = Field(default="", description="DynamoDB table name for rate limiting")
 
+    feedback_table_name: str = Field(
+        default="", description="DynamoDB table name for feedback storage"
+    )
+
     daily_rate_limit: int = Field(
         default=50, ge=1, le=10000, description="Maximum requests per IP per day"
     )

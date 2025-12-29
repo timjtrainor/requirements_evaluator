@@ -47,6 +47,26 @@ resource "aws_dynamodb_table" "rate_limit" {
 }
 
 # -----------------------------------------------------------------------------
+# DynamoDB Table for Feedback
+# -----------------------------------------------------------------------------
+
+resource "aws_dynamodb_table" "feedback" {
+  name         = "${var.project_name}-feedback-${var.environment}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "feedback_id"
+
+  attribute {
+    name = "feedback_id"
+    type = "S"
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+# -----------------------------------------------------------------------------
 # IAM Role for Lambda
 # -----------------------------------------------------------------------------
 
@@ -109,7 +129,10 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
           "dynamodb:UpdateItem",
           "dynamodb:Query"
         ]
-        Resource = aws_dynamodb_table.rate_limit.arn
+        Resource = [
+          aws_dynamodb_table.rate_limit.arn,
+          aws_dynamodb_table.feedback.arn
+        ]
       }
     ]
   })
@@ -163,6 +186,7 @@ resource "aws_lambda_function" "evaluator" {
   environment {
     variables = {
       RATE_LIMIT_TABLE        = aws_dynamodb_table.rate_limit.name
+      FEEDBACK_TABLE          = aws_dynamodb_table.feedback.name
       DAILY_RATE_LIMIT        = var.daily_rate_limit
       BEDROCK_REGION          = var.aws_region
       BEDROCK_MODEL_ID        = var.bedrock_model_id
@@ -262,6 +286,12 @@ resource "aws_apigatewayv2_route" "evaluate" {
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
+resource "aws_apigatewayv2_route" "feedback" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST /feedback"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
 resource "aws_lambda_permission" "api_gateway" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
@@ -348,6 +378,26 @@ resource "aws_cloudfront_distribution" "frontend" {
 
   ordered_cache_behavior {
     path_pattern           = "/evaluate"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "APIOrigin"
+    viewer_protocol_policy = "redirect-to-https"
+
+    forwarded_values {
+      query_string = true
+      headers      = ["Origin", "Access-Control-Request-Headers", "Access-Control-Request-Method"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  ordered_cache_behavior {
+    path_pattern           = "/feedback"
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD"]
     target_origin_id       = "APIOrigin"

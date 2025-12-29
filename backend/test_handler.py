@@ -18,60 +18,91 @@ from handler import (  # noqa: E402
     build_evaluation_prompt,
     get_client_ip,
     handler,
-    validate_request,
+    validate_evaluate_request,
+    validate_feedback_request,
 )
 
 
-class TestValidateRequest(unittest.TestCase):
-    """Test cases for request validation."""
+class TestValidateEvaluateRequest(unittest.TestCase):
+    """Test cases for evaluation request validation."""
 
     def test_empty_body(self):
         """Test that empty body is rejected."""
-        is_valid, error = validate_request({})
+        is_valid, error = validate_evaluate_request({})
         self.assertFalse(is_valid)
         self.assertIn("empty", error.lower())
 
     def test_missing_requirement_text(self):
         """Test that missing requirementText is rejected."""
-        is_valid, error = validate_request({"other_field": "value"})
+        is_valid, error = validate_evaluate_request({"other_field": "value"})
         self.assertFalse(is_valid)
         self.assertIn("requirementText", error)
 
     def test_non_string_requirement_text(self):
         """Test that non-string requirementText is rejected."""
-        is_valid, error = validate_request({"requirementText": 123})
+        is_valid, error = validate_evaluate_request({"requirementText": 123})
         self.assertFalse(is_valid)
         self.assertIn("string", error)
 
     def test_empty_requirement_text(self):
         """Test that empty requirementText is rejected."""
-        is_valid, error = validate_request({"requirementText": ""})
+        is_valid, error = validate_evaluate_request({"requirementText": ""})
         self.assertFalse(is_valid)
         self.assertIn("empty", error.lower())
 
     def test_whitespace_only_requirement_text(self):
         """Test that whitespace-only requirementText is rejected."""
-        is_valid, error = validate_request({"requirementText": "   "})
+        is_valid, error = validate_evaluate_request({"requirementText": "   "})
         self.assertFalse(is_valid)
         self.assertIn("empty", error.lower())
 
     def test_too_short_requirement_text(self):
         """Test that too short requirementText is rejected."""
-        is_valid, error = validate_request({"requirementText": "short"})
+        is_valid, error = validate_evaluate_request({"requirementText": "short"})
         self.assertFalse(is_valid)
         self.assertIn("10", error)
 
     def test_too_long_requirement_text(self):
         """Test that too long requirementText is rejected."""
         long_text = "x" * 6000
-        is_valid, error = validate_request({"requirementText": long_text})
+        is_valid, error = validate_evaluate_request({"requirementText": long_text})
         self.assertFalse(is_valid)
         self.assertIn("5000", error)
 
     def test_valid_requirement_text(self):
         """Test that valid requirementText passes validation."""
-        is_valid, error = validate_request(
+        is_valid, error = validate_evaluate_request(
             {"requirementText": "The system shall do something useful."}
+        )
+        self.assertTrue(is_valid)
+        self.assertEqual(error, "")
+
+
+class TestValidateFeedbackRequest(unittest.TestCase):
+    """Test cases for feedback request validation."""
+
+    def test_empty_body(self):
+        """Test that empty body is rejected."""
+        is_valid, error = validate_feedback_request({})
+        self.assertFalse(is_valid)
+        self.assertIn("empty", error.lower())
+
+    def test_missing_helpful(self):
+        """Test that missing helpful field is rejected."""
+        is_valid, error = validate_feedback_request({"timestamp": 123456789})
+        self.assertFalse(is_valid)
+        self.assertIn("helpful", error)
+
+    def test_missing_timestamp(self):
+        """Test that missing timestamp field is rejected."""
+        is_valid, error = validate_feedback_request({"helpful": True})
+        self.assertFalse(is_valid)
+        self.assertIn("timestamp", error)
+
+    def test_valid_feedback(self):
+        """Test that valid feedback passes validation."""
+        is_valid, error = validate_feedback_request(
+            {"helpful": True, "timestamp": 123456789}
         )
         self.assertTrue(is_valid)
         self.assertEqual(error, "")
@@ -187,6 +218,7 @@ class TestHandler(unittest.TestCase):
 
         event = {
             "httpMethod": "POST",
+            "path": "/evaluate",
             "body": json.dumps({"requirementText": "The system shall respond within 2 seconds."}),
             "requestContext": {"identity": {"sourceIp": "1.2.3.4"}},
         }
@@ -196,6 +228,48 @@ class TestHandler(unittest.TestCase):
         body = json.loads(response["body"])
         self.assertIn("ambiguity_detected", body)
         self.assertIn("completeness_score", body)
+
+    @patch("handler.save_feedback")
+    def test_successful_feedback(self, mock_save_feedback):
+        """Test successful feedback flow."""
+        mock_save_feedback.return_value = (True, "")
+
+        event = {
+            "httpMethod": "POST",
+            "path": "/feedback",
+            "body": json.dumps({
+                "helpful": True,
+                "timestamp": 123456789,
+                "requirementText": "Some text",
+                "comments": "Great!"
+            }),
+            "requestContext": {"identity": {"sourceIp": "1.2.3.4"}},
+        }
+
+        response = handler(event, self.mock_context)
+        self.assertEqual(response["statusCode"], 200)
+        body = json.loads(response["body"])
+        self.assertIn("message", body)
+
+    @patch("handler.save_feedback")
+    def test_feedback_failure(self, mock_save_feedback):
+        """Test feedback failure."""
+        mock_save_feedback.return_value = (False, "Database error")
+
+        event = {
+            "httpMethod": "POST",
+            "path": "/feedback",
+            "body": json.dumps({
+                "helpful": True,
+                "timestamp": 123456789
+            }),
+            "requestContext": {"identity": {"sourceIp": "1.2.3.4"}},
+        }
+
+        response = handler(event, self.mock_context)
+        self.assertEqual(response["statusCode"], 500)
+        body = json.loads(response["body"])
+        self.assertIn("error", body)
 
 
 if __name__ == "__main__":
