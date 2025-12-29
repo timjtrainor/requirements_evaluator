@@ -55,7 +55,7 @@ class Config(BaseSettings):
     # Rate Limiting Configuration
     rate_limit_table: str = Field(default="", description="DynamoDB table name for rate limiting")
 
-    feedback_table_name: str = Field(
+    feedback_table: str = Field(
         default="", description="DynamoDB table name for feedback storage"
     )
 

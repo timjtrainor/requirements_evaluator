@@ -24,7 +24,7 @@ base_logger = logging.getLogger()
 logger = StructuredLogger(base_logger)
 
 # Configuration
-TABLE_NAME = config.feedback_table_name or os.environ.get(
+TABLE_NAME = config.feedback_table or os.environ.get(
     "FEEDBACK_TABLE", "requirements-evaluator-feedback"
 )
 AWS_REGION = config.bedrock_region
