@@ -420,7 +420,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # Route request
         if path == "/feedback":
-             # Validate feedback request
+            # Validate feedback request
             is_valid, error_msg = validate_feedback_request(body)
             if not is_valid:
                 logger.warning("Feedback validation failed", request_id=request_id, error=error_msg)
