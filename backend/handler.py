@@ -93,11 +93,20 @@ def validate_feedback_request(body: Dict[str, Any]) -> Tuple[bool, str]:
     """
     Validate the incoming feedback request body.
 
+    Expected JSON structure:
+        {
+            "helpful": true | false,          # required, boolean
+            "timestamp": 1700000000000,       # required, numeric (e.g., Unix epoch)
+            "requirementText": "...",         # optional, string
+            "comments": "..."                 # optional, string
+        }
+
     Args:
-        body: Parsed JSON body from the request
+        body: Parsed JSON body from the request.
 
     Returns:
-        Tuple of (is_valid, error_message)
+        Tuple of (is_valid, error_message). The error_message is empty when the
+        request body is considered valid.
     """
     if not body:
         return False, "Request body is empty"
