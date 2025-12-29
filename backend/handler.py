@@ -390,13 +390,21 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return create_response(405, {"error": "Method not allowed"})
 
     # Determine path to route request
-    path = event.get("rawPath") or event.get("path") or event.get("requestContext", {}).get("http", {}).get("path") or ""
+    path = (
+        event.get("rawPath")
+        or event.get("path")
+        or event.get("requestContext", {}).get("http", {}).get("path")
+        or ""
+    )
 
     # Clean up path (handle stages if present)
     # e.g. /prod/evaluate -> /evaluate
     # Normalize by stripping trailing slash and getting the last segment
     path_stripped = path.rstrip("/")
-    last_segment = path_stripped.split("/")[-1] if path_stripped else ""
+    if path_stripped:
+        last_segment = path_stripped.split("/")[-1]
+    else:
+        last_segment = ""
 
     if last_segment == "evaluate":
         path = "/evaluate"
