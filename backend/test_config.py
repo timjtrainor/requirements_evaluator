@@ -92,6 +92,7 @@ class TestValidateResponseSchema(unittest.TestCase):
         is_valid, error = validate_response_schema(invalid_response)
         self.assertFalse(is_valid)
         self.assertIsNotNone(error)
+        assert error is not None  # nosec B101
         self.assertIn("ambiguity_details", error)
 
     def test_wrong_type_boolean(self):
@@ -112,6 +113,7 @@ class TestValidateResponseSchema(unittest.TestCase):
         is_valid, error = validate_response_schema(invalid_response)
         self.assertFalse(is_valid)
         self.assertIsNotNone(error)
+        assert error is not None  # nosec B101
         self.assertIn("bool", error.lower())
 
     def test_wrong_type_integer(self):
@@ -131,6 +133,7 @@ class TestValidateResponseSchema(unittest.TestCase):
         is_valid, error = validate_response_schema(invalid_response)
         self.assertFalse(is_valid)
         self.assertIsNotNone(error)
+        assert error is not None  # nosec B101
         self.assertIn("int", error.lower())
 
     def test_wrong_type_array(self):
@@ -149,6 +152,7 @@ class TestValidateResponseSchema(unittest.TestCase):
         is_valid, error = validate_response_schema(invalid_response)
         self.assertFalse(is_valid)
         self.assertIsNotNone(error)
+        assert error is not None  # nosec B101
         self.assertIn("array", error)
 
     def test_score_out_of_range_high(self):
@@ -167,6 +171,7 @@ class TestValidateResponseSchema(unittest.TestCase):
         is_valid, error = validate_response_schema(invalid_response)
         self.assertFalse(is_valid)
         self.assertIsNotNone(error)
+        assert error is not None  # nosec B101
         self.assertIn("10", error)  # Should mention the limit
 
     def test_score_out_of_range_low(self):
@@ -185,6 +190,7 @@ class TestValidateResponseSchema(unittest.TestCase):
         is_valid, error = validate_response_schema(invalid_response)
         self.assertFalse(is_valid)
         self.assertIsNotNone(error)
+        assert error is not None  # nosec B101
         self.assertIn("1", error)  # Should mention the limit
 
     def test_array_items_wrong_type(self):
@@ -203,6 +209,7 @@ class TestValidateResponseSchema(unittest.TestCase):
         is_valid, error = validate_response_schema(invalid_response)
         self.assertFalse(is_valid)
         self.assertIsNotNone(error)
+        assert error is not None  # nosec B101
         self.assertIn("string", error)
 
     def test_boundary_score_values(self):

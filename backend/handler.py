@@ -8,17 +8,25 @@ and returns structured evaluation results.
 
 import json
 import logging
+import os
+import sys
 import time
 from textwrap import dedent
 from typing import Any, Dict, Tuple, cast
 
-import boto3
-from botocore.exceptions import ClientError
+# Add the 'package' directory to sys.path to support vendored dependencies
+# This allows us to separate Linux-specific binaries from our source code
+package_dir = os.path.join(os.path.dirname(__file__), "package")
+if os.path.exists(package_dir):
+    sys.path.insert(0, package_dir)
 
-from config import get_config, validate_response_schema
-from logging_utils import StructuredLogger
-from rate_limit import check_and_increment_quota
-from feedback_service import save_feedback
+import boto3  # noqa: E402
+from botocore.exceptions import ClientError  # noqa: E402
+
+from config import get_config, validate_response_schema  # noqa: E402
+from logging_utils import StructuredLogger  # noqa: E402
+from rate_limit import check_and_increment_quota  # noqa: E402
+from feedback_service import save_feedback  # noqa: E402
 
 # Get configuration singleton
 config = get_config()

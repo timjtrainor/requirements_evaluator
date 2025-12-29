@@ -58,7 +58,7 @@ def save_feedback(data: Dict[str, Any]) -> Tuple[bool, str]:
         "helpful": data.get("helpful", False),
         "timestamp": data.get("timestamp"),
         "client_ip": data.get("client_ip", "unknown"),
-        "created_at": int(time.time())  # Server timestamp in seconds
+        "created_at": int(time.time()),  # Server timestamp in seconds
     }
 
     # Add optional fields only if they have content (DynamoDB does not allow empty strings)
@@ -72,23 +72,12 @@ def save_feedback(data: Dict[str, Any]) -> Tuple[bool, str]:
 
     try:
         table.put_item(Item=item)
-        logger.info(
-            "Feedback saved",
-            feedback_id=feedback_id,
-            helpful=item["helpful"]
-        )
+        logger.info("Feedback saved", feedback_id=feedback_id, helpful=item["helpful"])
         return True, ""
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
-        logger.error(
-            "DynamoDB error saving feedback",
-            error_code=error_code,
-            error=str(e)
-        )
+        logger.error("DynamoDB error saving feedback", error_code=error_code, error=str(e))
         return False, f"Database error: {error_code}"
     except Exception as e:
-        logger.error(
-            "Unexpected error saving feedback",
-            error=str(e)
-        )
+        logger.error("Unexpected error saving feedback", error=str(e))
         return False, "Internal server error"

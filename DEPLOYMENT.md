@@ -96,10 +96,10 @@ black --check .
 flake8 .
 
 # Security scan
-bandit -r .
+bandit -r . -x package
 
 # Type checking
-mypy --ignore-missing-imports .
+mypy --ignore-missing-imports --exclude package .
 
 # Expected: No critical issues
 ```
@@ -160,10 +160,11 @@ The Lambda function requires external dependencies (like Pydantic). Since Lambda
 # 1. Clean up any previous local installs in the backend folder
 rm -rf backend/annotated_types* backend/bin backend/boto3* backend/botocore* backend/dateutil* backend/dotenv* backend/jmespath* backend/pydantic* backend/python_dateutil* backend/python_dotenv* backend/s3transfer* backend/six* backend/typing_extensions* backend/typing_inspection* backend/urllib3*
 
-# 2. Install Linux-compatible dependencies
+# 2. Install Linux-compatible dependencies into the 'package' subdirectory
+mkdir -p backend/package
 pip install \
     --platform manylinux2014_x86_64 \
-    --target backend/ \
+    --target backend/package/ \
     --implementation cp \
     --python-version 3.11 \
     --only-binary=:all: \
