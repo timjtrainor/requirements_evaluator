@@ -109,6 +109,13 @@ def validate_feedback_request(body: Dict[str, Any]) -> Tuple[bool, str]:
     if "timestamp" not in body:
         return False, "Missing required field: timestamp"
 
+    # Optional comments field length validation to prevent excessively large inputs
+    if "comments" in body:
+        comments = body["comments"]
+        if not isinstance(comments, str):
+            return False, "Field 'comments' must be a string"
+        if len(comments) > 10000:
+            return False, "Field 'comments' exceeds maximum length of 10000 characters"
     # Type validation
     if not isinstance(body["helpful"], bool):
         return False, "Field 'helpful' must be a boolean"
