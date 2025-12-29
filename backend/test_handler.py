@@ -101,19 +101,25 @@ class TestValidateFeedbackRequest(unittest.TestCase):
 
     def test_invalid_helpful_type(self):
         """Test that non-boolean helpful field is rejected."""
-        is_valid, error = validate_feedback_request({"helpful": "yes", "timestamp": 123456789})
+        is_valid, error = validate_feedback_request(
+            {"helpful": "yes", "timestamp": 123456789}
+        )
         self.assertFalse(is_valid)
         self.assertIn("boolean", error)
 
     def test_invalid_timestamp_type(self):
         """Test that non-numeric timestamp field is rejected."""
-        is_valid, error = validate_feedback_request({"helpful": True, "timestamp": "now"})
+        is_valid, error = validate_feedback_request(
+            {"helpful": True, "timestamp": "now"}
+        )
         self.assertFalse(is_valid)
         self.assertIn("number", error)
 
     def test_valid_feedback(self):
         """Test that valid feedback passes validation."""
-        is_valid, error = validate_feedback_request({"helpful": True, "timestamp": 123456789})
+        is_valid, error = validate_feedback_request(
+            {"helpful": True, "timestamp": 123456789}
+        )
         self.assertTrue(is_valid)
         self.assertEqual(error, "")
 
@@ -247,14 +253,12 @@ class TestHandler(unittest.TestCase):
         event = {
             "httpMethod": "POST",
             "path": "/feedback",
-            "body": json.dumps(
-                {
-                    "helpful": True,
-                    "timestamp": 123456789,
-                    "requirementText": "Some text",
-                    "comments": "Great!",
-                }
-            ),
+            "body": json.dumps({
+                "helpful": True,
+                "timestamp": 123456789,
+                "requirementText": "Some text",
+                "comments": "Great!"
+            }),
             "requestContext": {"identity": {"sourceIp": "1.2.3.4"}},
         }
 
@@ -271,7 +275,10 @@ class TestHandler(unittest.TestCase):
         event = {
             "httpMethod": "POST",
             "path": "/feedback",
-            "body": json.dumps({"helpful": True, "timestamp": 123456789}),
+            "body": json.dumps({
+                "helpful": True,
+                "timestamp": 123456789
+            }),
             "requestContext": {"identity": {"sourceIp": "1.2.3.4"}},
         }
 

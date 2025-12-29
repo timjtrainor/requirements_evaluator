@@ -52,8 +52,7 @@ Thumbs.db
 .env
 .env.local
 
-# Vendored dependencies (installed into backend/package for Lambda)
-backend/package/
+# Vendored dependencies (installed into backend/ for Lambda)
 backend/annotated_types*/
 backend/bin/
 backend/boto3*/

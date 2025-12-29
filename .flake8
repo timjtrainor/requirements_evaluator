@@ -10,7 +10,6 @@ exclude =
     *.egg,
     build,
     dist,
-    .terraform,
-    backend/package
+    .terraform
 per-file-ignores =
     __init__.py:F401

@@ -15,7 +15,6 @@ extend-exclude = '''
   | buck-out
   | build
   | dist
-  | backend/package
 )/
 '''
 
@@ -38,14 +37,11 @@ disable = [
 ]
 
 [tool.bandit]
-exclude_dirs = ["tests", "test_*.py", "backend/package"]
-# Also use 'exclude' for older bandit versions or specific runner behaviors
-exclude = ["tests", "test_*.py", "backend/package"]
+exclude_dirs = ["tests", "test_*.py"]
 skips = ["B101"]  # Skip assert_used
 
 [tool.mypy]
 python_version = "3.11"
-exclude = 'backend/package'
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
