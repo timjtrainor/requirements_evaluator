@@ -384,11 +384,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     # Determine path to route request
     path = event.get("rawPath") or event.get("path") or event.get("requestContext", {}).get("http", {}).get("path") or ""
 
-    # Clean up path (handle stages if present)
+    # Clean up path (handle stages or prefixes by normalizing the last segment)
     # e.g. /prod/evaluate -> /evaluate
-    if path.endswith("/evaluate"):
+    path_stripped = path.rstrip("/")
+    last_segment = path_stripped.split("/")[-1] if path_stripped else ""
+    if last_segment == "evaluate":
         path = "/evaluate"
-    elif path.endswith("/feedback"):
+    elif last_segment == "feedback":
         path = "/feedback"
 
     try:
