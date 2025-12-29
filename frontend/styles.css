@@ -363,6 +363,54 @@ footer p {
     cursor: not-allowed;
 }
 
+.secondary-btn {
+    padding: 0.5rem 1rem;
+    background-color: white;
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.secondary-btn:hover {
+    border-color: var(--primary-color);
+    background-color: #f1f5f9;
+}
+
+#feedback-comments-section {
+    margin-top: 1.5rem;
+}
+
+#feedback-comments-section label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+#feedback-comments-section textarea {
+    width: 100%;
+    margin-bottom: 0.75rem;
+}
+
+#feedback-comments {
+    padding: 0.75rem;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+#feedback-comments:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
 .feedback-thank-you {
     color: var(--success-color);
     font-weight: 600;
@@ -371,8 +419,15 @@ footer p {
 
 /* Loading Animation */
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .btn-loader {
@@ -384,11 +439,11 @@ footer p {
     .container {
         padding: 1rem;
     }
-    
+
     header h1 {
         font-size: 1.5rem;
     }
-    
+
     .summary-grid {
         grid-template-columns: 1fr;
     }

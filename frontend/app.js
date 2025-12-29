@@ -31,6 +31,8 @@ const CONFIG = {
     FEEDBACK_ENDPOINT: '/feedback'
 };
 
+let currentRequestId = null;
+
 // =============================================================================
 // DOM Elements
 // =============================================================================
@@ -154,9 +156,12 @@ function hideError() {
  * Display the evaluation results.
  */
 function displayResults(results) {
+    // Store request ID for feedback
+    currentRequestId = results.request_id || null;
+
     // Reset feedback
     resetFeedback();
-    
+
     // Ambiguity
     const ambiguityDetected = results.ambiguity_detected;
     elements.ambiguityIndicator.textContent = ambiguityDetected ? 'Detected' : 'Clear';
@@ -278,13 +283,14 @@ function handleFeedback(isHelpful) {
 async function submitFeedback(isHelpful) {
     const comments = elements.feedbackComments.value.trim();
     const requirementText = elements.input.value.trim();
-    
+
     try {
         await sendFeedback({
             helpful: isHelpful,
             timestamp: Date.now(),
             requirementText: requirementText,
-            comments: comments
+            comments: comments,
+            request_id: currentRequestId
         });
 
         // UI updates after successful send
@@ -356,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
             handleEvaluate();
         }
     });
-    
+
     // Feedback button handlers
     elements.feedbackHelpful.addEventListener('click', () => handleFeedback(true));
     elements.feedbackNotHelpful.addEventListener('click', () => handleFeedback(false));

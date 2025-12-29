@@ -10,11 +10,12 @@ import sys
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, cast
 
-# Add the 'package' directory to sys.path to support vendored dependencies
-# This allows us to separate Linux-specific binaries from our source code
-package_dir = os.path.join(os.path.dirname(__file__), "package")
-if os.path.exists(package_dir):
-    sys.path.insert(0, package_dir)
+# Add the 'package' directory to sys.path to support vendored dependencies when
+# running in AWS Lambda. This directory contains Linux-specific binaries.
+if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    package_dir = os.path.join(os.path.dirname(__file__), "package")
+    if os.path.exists(package_dir):
+        sys.path.insert(0, package_dir)
 
 import boto3  # noqa: E402
 
