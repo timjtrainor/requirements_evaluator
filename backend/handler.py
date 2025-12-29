@@ -109,6 +109,12 @@ def validate_feedback_request(body: Dict[str, Any]) -> Tuple[bool, str]:
     if "timestamp" not in body:
         return False, "Missing required field: timestamp"
 
+    # Type validation
+    if not isinstance(body["helpful"], bool):
+        return False, "Field 'helpful' must be a boolean"
+
+    if not isinstance(body["timestamp"], (int, float)):
+        return False, "Field 'timestamp' must be a number"
     return True, ""
 
 
