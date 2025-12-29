@@ -294,10 +294,9 @@ async function submitFeedback(isHelpful) {
 
     } catch (error) {
         console.error('Error sending feedback:', error);
-        // Still show thank you message to user
-        elements.feedbackCommentsSection.style.display = 'none';
+        // Inform the user that feedback could not be sent
+        elements.feedbackMessage.textContent = 'We could not send your feedback. Please try again later.'; // Fallback error message
         elements.feedbackMessage.style.display = 'block';
-        elements.feedbackMessage.textContent = 'Thank you!'; // Fallback message
     }
 }
 
