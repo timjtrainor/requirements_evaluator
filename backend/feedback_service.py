@@ -6,6 +6,7 @@ Handles storage of user feedback in DynamoDB.
 
 import logging
 import os
+import time
 import uuid
 from typing import Any, Dict, Tuple
 
@@ -59,7 +60,7 @@ def save_feedback(data: Dict[str, Any]) -> Tuple[bool, str]:
         "requirement_text": data.get("requirementText", ""),
         "comments": data.get("comments", ""),
         "client_ip": data.get("client_ip", "unknown"),
-        "created_at": int(uuid.uuid1().time / 10000)  # rough server timestamp
+        "created_at": int(time.time())  # Server timestamp in seconds
     }
 
     try:

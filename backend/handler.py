@@ -60,7 +60,13 @@ def validate_evaluate_request(body: Dict[str, Any]) -> Tuple[bool, str]:
         body: Parsed JSON body from the request
 
     Returns:
-        Tuple of (is_valid, error_message)
+        Tuple of (is_valid, error_message). The error_message is empty when the
+        request body is considered valid.
+
+    Expected JSON structure:
+    {
+        "requirementText": "...", # required, string, 10-5000 chars
+    }
     """
     if not body:
         return False, "Request body is empty"
@@ -93,20 +99,20 @@ def validate_feedback_request(body: Dict[str, Any]) -> Tuple[bool, str]:
     """
     Validate the incoming feedback request body.
 
-    Expected JSON structure:
-        {
-            "helpful": true | false,          # required, boolean
-            "timestamp": 1700000000000,       # required, numeric (e.g., Unix epoch)
-            "requirementText": "...",         # optional, string
-            "comments": "..."                 # optional, string
-        }
-
     Args:
-        body: Parsed JSON body from the request.
+        body: Parsed JSON body from the request
 
     Returns:
         Tuple of (is_valid, error_message). The error_message is empty when the
         request body is considered valid.
+
+    Expected JSON structure:
+    {
+        "helpful": true | false,    # required, boolean
+        "timestamp": 1700000000000, # required, numeric (e.g., Unix epoch)
+        "requirementText": "...",   # optional, string
+        "comments": "..."           # optional, string
+    }
     """
     if not body:
         return False, "Request body is empty"
@@ -115,22 +121,15 @@ def validate_feedback_request(body: Dict[str, Any]) -> Tuple[bool, str]:
     if "helpful" not in body:
         return False, "Missing required field: helpful"
 
-    if "timestamp" not in body:
-        return False, "Missing required field: timestamp"
-
-    # Optional comments field length validation to prevent excessively large inputs
-    if "comments" in body:
-        comments = body["comments"]
-        if not isinstance(comments, str):
-            return False, "Field 'comments' must be a string"
-        if len(comments) > 10000:
-            return False, "Field 'comments' exceeds maximum length of 10000 characters"
-    # Type validation
     if not isinstance(body["helpful"], bool):
         return False, "Field 'helpful' must be a boolean"
 
+    if "timestamp" not in body:
+        return False, "Missing required field: timestamp"
+
     if not isinstance(body["timestamp"], (int, float)):
         return False, "Field 'timestamp' must be a number"
+
     return True, ""
 
 
@@ -393,14 +392,21 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     # Determine path to route request
     path = event.get("rawPath") or event.get("path") or event.get("requestContext", {}).get("http", {}).get("path") or ""
 
-    # Clean up path (handle stages or prefixes by normalizing the last segment)
+    # Clean up path (handle stages if present)
     # e.g. /prod/evaluate -> /evaluate
+    # Normalize by stripping trailing slash and getting the last segment
     path_stripped = path.rstrip("/")
     last_segment = path_stripped.split("/")[-1] if path_stripped else ""
+
     if last_segment == "evaluate":
         path = "/evaluate"
     elif last_segment == "feedback":
         path = "/feedback"
+    else:
+        # Fallback for root or unknown paths to keep existing behavior or 404
+        # Existing behavior seemed to default to evaluate logic if it passed validation,
+        # but better to be explicit.
+        pass
 
     try:
         # Parse request body
@@ -417,6 +423,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # Get client IP
         client_ip = get_client_ip(event)
+
+        # Check rate limit for ALL requests to prevent abuse
+        # We use the same daily limit for now, but this could be split in the future
+        allowed, rate_error = check_and_increment_quota(client_ip)
+
+        if not allowed:
+            logger.warning("Rate limit exceeded", request_id=request_id, client_ip=client_ip)
+            return create_response(429, {"error": rate_error})
 
         # Route request
         if path == "/feedback":
@@ -442,13 +456,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if not is_valid:
                 logger.warning("Request validation failed", request_id=request_id, error=error_msg)
                 return create_response(400, {"error": error_msg})
-
-            # Check rate limit
-            allowed, rate_error = check_and_increment_quota(client_ip)
-
-            if not allowed:
-                logger.warning("Rate limit exceeded", request_id=request_id, client_ip=client_ip)
-                return create_response(429, {"error": rate_error})
 
             # Call Bedrock for evaluation
             requirement_text = body["requirementText"].strip()

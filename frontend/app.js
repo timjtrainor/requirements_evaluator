@@ -263,7 +263,10 @@ function handleFeedback(isHelpful) {
         elements.feedbackNotHelpful.classList.add('selected');
         elements.feedbackHelpful.classList.remove('selected');
 
-        // If not helpful, show comments section
+        // If not helpful, disable buttons and show comments section
+        elements.feedbackHelpful.disabled = true;
+        elements.feedbackNotHelpful.disabled = true;
+
         elements.feedbackCommentsSection.style.display = 'block';
         elements.feedbackComments.focus();
     }
@@ -294,9 +297,10 @@ async function submitFeedback(isHelpful) {
 
     } catch (error) {
         console.error('Error sending feedback:', error);
-        // Inform the user that feedback could not be sent
-        elements.feedbackMessage.textContent = 'We could not send your feedback. Please try again later.'; // Fallback error message
+        // Still show thank you message to user
+        elements.feedbackCommentsSection.style.display = 'none';
         elements.feedbackMessage.style.display = 'block';
+        elements.feedbackMessage.textContent = 'Thank you!'; // Fallback message
     }
 }
 
