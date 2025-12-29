@@ -214,7 +214,7 @@ def call_bedrock(requirement_text: str) -> Dict[str, Any]:
             "schemaVersion": "messages-v1",
             "messages": [{"role": "user", "content": [{"text": prompt}]}],
             "inferenceConfig": {
-                "maxTokens": config.model_max_tokens,
+                "max_new_tokens": config.model_max_tokens,
                 "temperature": config.model_temperature,
             },
         }
