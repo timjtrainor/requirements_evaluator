@@ -67,18 +67,18 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["backend"]
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
-addopts = "-v --tb=short"
+python_files = ["test_*.py"]
+norecursedirs = ["backend/package"]
 
 [tool.coverage.run]
 source = ["backend"]
 omit = [
-    "*/test_*.py",
-    "*/__pycache__/*",
-    "*/venv/*",
-    "*/.venv/*",
+    "**/package/*",
+    "**/tests/*",
+    "**/test_*.py",
+    "**/__pycache__/*",
+    "**/venv/*",
+    "**/.venv/*",
 ]
 
 [tool.coverage.report]

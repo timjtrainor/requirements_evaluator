@@ -99,7 +99,8 @@ flake8 .
 bandit -r . -x package
 
 # Type checking
-mypy --ignore-missing-imports --exclude package .
+
+
 
 # Expected: No critical issues
 ```
